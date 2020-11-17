@@ -5,6 +5,8 @@ from .models import EnhancedUser, EnhancedGroup, Datasource, Chart
 
 
 # Create your views here.
+def helloworld(request: HttpRequest) -> HttpResponse:
+    return HttpResponse('Hello World')
 
 def debug_reset_database(request: HttpRequest) -> HttpResponse:
     for user in User.objects.all():

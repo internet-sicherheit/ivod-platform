@@ -53,10 +53,11 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'ivod_platform.urls'
 
+#TODO: Manage load order of templates if specific cases occurr.
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [Path(BASE_DIR).resolve().joinpath('platformFrontend').joinpath('templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
