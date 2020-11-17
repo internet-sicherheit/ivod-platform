@@ -2,6 +2,9 @@ from django.shortcuts import render
 from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseForbidden
 from django.contrib.auth.models import User, Group
 from .models import EnhancedUser, EnhancedGroup, Datasource, Chart
+from rest_framework import generics
+from .serializers import *
+from .permissions import *
 
 
 # Create your views here.
@@ -76,3 +79,27 @@ def debug_reset_database(request: HttpRequest) -> HttpResponse:
 
 
     return HttpResponse('')
+
+class ChartListView(generics.ListAPIView):
+    queryset = Chart.objects.all()
+    serializer_class = ChartSerializer
+
+    def get_object(self):
+        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        print(obj)
+        print("---")
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+class ChartRetrieveView(generics.RetrieveAPIView):
+    queryset = Chart.objects.all()
+    serializer_class = ChartSerializer
+    permission_classes = [IsChartOwner]
+
+    def get_object(self):
+        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        self.check_object_permissions(self.request, obj)
+        print(obj)
+        print("---")
+        self.check_object_permissions(self.request, obj)
+        return obj

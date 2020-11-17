@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User, Group
+from django.shortcuts import get_object_or_404
 
 # Create your models here.
 class Datasource(models.Model):
@@ -26,10 +27,10 @@ class Chart(models.Model):
 class EnhancedUser(models.Model):
     #TODO: Better name
     auth_user = models.ForeignKey(User, on_delete=models.CASCADE)
-    datasources_shared_with_user = models.ManyToManyField(Datasource, blank=True, null=True)
-    charts_shared_with_user = models.ManyToManyField(Chart, blank=True, null=True)
+    datasources_shared_with_user = models.ManyToManyField(Datasource)
+    charts_shared_with_user = models.ManyToManyField(Chart)
 
 class EnhancedGroup(models.Model):
     auth_group = models.ForeignKey(Group, on_delete=models.CASCADE)
-    datasources_shared_with_group = models.ManyToManyField(Datasource, blank=True, null=True)
-    charts_shared_with_group = models.ManyToManyField(Chart, blank=True, null=True)
+    datasources_shared_with_group = models.ManyToManyField(Datasource)
+    charts_shared_with_group = models.ManyToManyField(Chart)
