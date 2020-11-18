@@ -7,6 +7,10 @@ class Datasource(models.Model):
     source = models.URLField()
     scope_path = models.CharField(max_length=256)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['owner','scope_path'],name='datasource_unique_user_scope_path'),
+        ]
 
 class Chart(models.Model):
 
@@ -23,6 +27,11 @@ class Chart(models.Model):
     config = models.CharField(max_length=8192)
     downloadable = models.BooleanField(default=False)
     visibility = models.IntegerField(default=VISIBILITY_PRIVATE)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['owner','scope_path'],name='chart_unique_user_scope_path'),
+        ]
 
 class EnhancedUser(models.Model):
     #TODO: Better name

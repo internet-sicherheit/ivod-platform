@@ -5,7 +5,9 @@ from .models import EnhancedUser, EnhancedGroup, Datasource, Chart
 from rest_framework import generics
 from .serializers import *
 from .permissions import *
-
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework import permissions
 
 # Create your views here.
 def helloworld(request: HttpRequest) -> HttpResponse:
@@ -109,3 +111,19 @@ class ChartRetrieveView(generics.RetrieveAPIView):
         obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
         self.check_object_permissions(self.request, obj)
         return obj
+
+class DatasourceCreateView(generics.CreateAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = DatasourceSerializer
+
+    #FIXME: Upload limits?
+
+    def post(self, request, *args, **kwargs):
+        print(request.data)
+        serializer = DatasourceSerializer(data=request.data,context={'request':request})
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def get(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
