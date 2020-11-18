@@ -26,6 +26,7 @@ class Chart(models.Model):
 
 class EnhancedUser(models.Model):
     #TODO: Better name
+    #TODO: Make auth_user private key
     auth_user = models.ForeignKey(User, on_delete=models.CASCADE)
     datasources_shared_with_user = models.ManyToManyField(Datasource)
     charts_shared_with_user = models.ManyToManyField(Chart)

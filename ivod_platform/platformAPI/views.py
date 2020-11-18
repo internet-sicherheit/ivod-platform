@@ -72,6 +72,15 @@ def debug_reset_database(request: HttpRequest) -> HttpResponse:
         downloadable=True,
         visibility=Chart.VISIBILITY_PRIVATE)
 
+    chart5 = Chart.objects.create(
+        chart_name="barchart",
+        scope_path="/barchart3",
+        owner=user2,
+        original_datasource=datasource2,
+        config="{}",
+        downloadable=True,
+        visibility=Chart.VISIBILITY_PUBLIC)
+
     euser1 = EnhancedUser.objects.create(auth_user=user1)
     euser2 = EnhancedUser.objects.create(auth_user=user2)
     euser2.charts_shared_with_user.add(chart2)
@@ -94,12 +103,9 @@ class ChartListView(generics.ListAPIView):
 class ChartRetrieveView(generics.RetrieveAPIView):
     queryset = Chart.objects.all()
     serializer_class = ChartSerializer
-    permission_classes = [IsChartOwner]
+    permission_classes = [IsChartOwner | ChartIsShared & ChartIsSharedWithUser | ChartIsSemiPublic]
 
     def get_object(self):
         obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
-        self.check_object_permissions(self.request, obj)
-        print(obj)
-        print("---")
         self.check_object_permissions(self.request, obj)
         return obj
