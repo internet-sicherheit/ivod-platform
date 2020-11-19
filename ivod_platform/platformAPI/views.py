@@ -203,7 +203,7 @@ class ChartRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
 
     def delete(self, request, *args, **kwargs):
         current_object = self.get_object()
-        if type(current_object) != Datasource:
+        if type(current_object) != Chart:
             return current_object
         owner_permission = IsChartOwner()
         if not owner_permission.has_object_permission(request, self, current_object):
