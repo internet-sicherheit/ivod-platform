@@ -91,17 +91,6 @@ def debug_reset_database(request: HttpRequest) -> HttpResponse:
 
     return HttpResponse('')
 
-class ChartListView(generics.ListAPIView):
-    queryset = Chart.objects.all()
-    serializer_class = ChartSerializer
-
-    def get_object(self):
-        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
-        print(obj)
-        print("---")
-        self.check_object_permissions(self.request, obj)
-        return obj
-
 class ChartRetrieveView(generics.RetrieveAPIView):
     queryset = Chart.objects.all()
     serializer_class = ChartSerializer
@@ -112,18 +101,113 @@ class ChartRetrieveView(generics.RetrieveAPIView):
         self.check_object_permissions(self.request, obj)
         return obj
 
-class DatasourceCreateView(generics.CreateAPIView):
+class DatasourceCreateListView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = DatasourceSerializer
+    queryset = Datasource.objects.all()
 
     #FIXME: Upload limits?
 
     def post(self, request, *args, **kwargs):
-        print(request.data)
-        serializer = DatasourceSerializer(data=request.data,context={'request':request})
+        owner = request.user
+        data = request.data
+        data['owner'] = owner.id
+        serializer = DatasourceSerializer(data=data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        # Only show datasources owned or shared with user
+        owner_permission = IsDatasourceOwner()
+        shared_permission = DatasourceIsSharedWithUser()
+        queryset = [obj for obj in queryset if owner_permission.has_object_permission(request, self, obj) or shared_permission.has_object_permission(request, self, obj)]
+        serializer = DatasourceSerializer(data=queryset, many=True)
+        serializer.is_valid()
+        return Response(serializer.data)
+
+class DatasourceRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [permissions.IsAuthenticated & (IsDatasourceOwner | DatasourceIsSharedWithUser)]
+    serializer_class = DatasourceSerializer
+    queryset = Datasource.objects.all()
+
+    def get_object(self):
+        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def put(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
+
+    def patch(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
+
+    def delete(self, request, *args, **kwargs):
+        current_object = self.get_object()
+        if type(current_object) != Datasource:
+            return current_object
+        owner_permission = IsDatasourceOwner()
+        if not owner_permission.has_object_permission(request, self, current_object):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        current_object.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class ChartCreateListView(generics.ListCreateAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ChartSerializer
+    queryset = Chart.objects.all()
+
+    # FIXME: Upload limits?
+
+    def post(self, request, *args, **kwargs):
+        owner = request.user
+        data = request.data
+        data['owner'] = owner.id
+        data['config'] = str(data['config'])
+        serializer = ChartSerializer(data=data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def get(self, request, *args, **kwargs):
-        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        queryset = self.get_queryset()
+        # Only show datasources owned or shared with user
+        e_user = EnhancedUser.objects.get(auth_user=request.user)
+        owner_permission = IsChartOwner()
+        shared_permission = ChartIsSharedWithUser()
+        queryset = [obj for obj in queryset if owner_permission.has_object_permission(request, self,
+                                                                                      obj) or shared_permission.has_object_permission(
+            request, self, obj)]
+        serializer = ChartSerializer(data=queryset, many=True)
+        serializer.is_valid()
+        return Response(serializer.data)
+
+class ChartRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [permissions.IsAuthenticated & (IsChartOwner | ChartIsSharedWithUser)]
+    serializer_class = ChartSerializer
+    queryset = Chart.objects.all()
+
+    def get_object(self):
+        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def put(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
+
+    def patch(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
+
+    def delete(self, request, *args, **kwargs):
+        current_object = self.get_object()
+        if type(current_object) != Datasource:
+            return current_object
+        owner_permission = IsChartOwner()
+        if not owner_permission.has_object_permission(request, self, current_object):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        current_object.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

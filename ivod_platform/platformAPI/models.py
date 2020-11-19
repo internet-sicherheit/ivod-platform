@@ -22,7 +22,7 @@ class Chart(models.Model):
     chart_name = models.CharField(max_length=256)
     scope_path = models.CharField(max_length=256)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
-    original_datasource = models.ForeignKey(Datasource, on_delete=models.DO_NOTHING, blank=True, null=True)
+    original_datasource = models.ForeignKey(Datasource, on_delete=models.SET_NULL, blank=True, null=True)
     #TODO: config in file or in db?
     config = models.CharField(max_length=8192)
     downloadable = models.BooleanField(default=False)
