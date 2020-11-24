@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User, Group
-from django.shortcuts import get_object_or_404
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 # Create your models here.
 class Datasource(models.Model):
@@ -36,11 +37,23 @@ class Chart(models.Model):
 class EnhancedUser(models.Model):
     #TODO: Better name
     #TODO: Make auth_user private key
+
     auth_user = models.ForeignKey(User, on_delete=models.CASCADE)
     datasources_shared_with_user = models.ManyToManyField(Datasource)
     charts_shared_with_user = models.ManyToManyField(Chart)
+
+    @receiver(post_save, sender=User)
+    def on_create_user(sender, **kwargs):
+        if 'created' in kwargs and kwargs['created']:
+            EnhancedUser.objects.create(auth_user=kwargs['instance'])
+
 
 class EnhancedGroup(models.Model):
     auth_group = models.ForeignKey(Group, on_delete=models.CASCADE)
     datasources_shared_with_group = models.ManyToManyField(Datasource)
     charts_shared_with_group = models.ManyToManyField(Chart)
+
+    @receiver(post_save, sender=Group)
+    def on_create_user(sender, **kwargs):
+        if 'created' in kwargs and kwargs['created']:
+            EnhancedGroup.objects.create(auth_group=kwargs['instance'])
