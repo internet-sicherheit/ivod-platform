@@ -34,6 +34,8 @@ def debug_reset_database(request: HttpRequest) -> HttpResponse:
     admin = User.objects.create_superuser(username="admin", email=None, password="00000000")
     user1 = User.objects.create_user(username="user1", email=None, password="00000000")
     user2 = User.objects.create_user(username="user2", email=None, password="00000000")
+    # Use user3 for a authenticated, but otherwise no permissions
+    user3 = User.objects.create_user(username="user3", email=None, password="00000000")
 
     datasource1 = Datasource.objects.create(source="file://some/file1", scope_path="/file1", owner=user1)
     datasource2 = Datasource.objects.create(source="file://some/file2", scope_path="/file2", owner=user2)
@@ -171,9 +173,12 @@ class ChartCreateListView(generics.ListCreateAPIView):
         e_user = EnhancedUser.objects.get(auth_user=request.user)
         owner_permission = IsChartOwner()
         shared_permission = ChartIsSharedWithUser()
-        queryset = [obj for obj in queryset if owner_permission.has_object_permission(request, self,
-                                                                                      obj) or shared_permission.has_object_permission(
-            request, self, obj)]
+        public_permission = ChartIsPublic()
+        queryset = [obj for obj in queryset
+                    if owner_permission.has_object_permission(request, self, obj)
+                    or shared_permission.has_object_permission(request, self, obj)
+                    or public_permission.has_object_permission(request, self, obj)
+                    ]
         serializer = ChartSerializer(data=queryset, many=True)
         serializer.is_valid()
         return Response(serializer.data)

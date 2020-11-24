@@ -3,7 +3,6 @@ from .models import *
 from base64 import b64decode
 from uuid import uuid4
 from pathlib import Path
-from django.contrib.auth.models import AnonymousUser
 
 
 class UserField(serializers.Field):
