@@ -128,7 +128,7 @@ class DatasourceCreateListView(generics.ListCreateAPIView):
         serializer.is_valid()
         return Response(serializer.data)
 
-class DatasourceRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
+class DatasourceRetrieveDestroy(generics.RetrieveDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated & (IsDatasourceOwner | DatasourceIsSharedWithUser)]
     serializer_class = DatasourceSerializer
     queryset = Datasource.objects.all()
@@ -137,12 +137,6 @@ class DatasourceRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
         obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
         self.check_object_permissions(self.request, obj)
         return obj
-
-    def put(self, request, *args, **kwargs):
-        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
-
-    def patch(self, request, *args, **kwargs):
-        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
 
     def delete(self, request, *args, **kwargs):
         current_object = self.get_object()
@@ -196,10 +190,26 @@ class ChartRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
         return obj
 
     def put(self, request, *args, **kwargs):
-        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
+        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def patch(self, request, *args, **kwargs):
-        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
+        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        if type(obj) != Chart:
+            return obj
+        #Only owner can modify
+        if not IsChartOwner().has_object_permission(request, self, obj):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        #Whitelist of changable parameters
+        # TODO: Set read-only on model
+        obj.scope_path = request.data.get('scope_path', obj.scope_path)
+        obj.config = request.data.get('config', obj.config)
+        obj.downloadable = request.data.get('downloadable', obj.downloadable)
+        obj.visibility = request.data.get('visibility', obj.visibility)
+        obj.save()
+        serializer = ChartSerializer(obj)
+        return Response(serializer.data)
+
 
     def delete(self, request, *args, **kwargs):
         current_object = self.get_object()
