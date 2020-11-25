@@ -9,6 +9,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import permissions
 
+from traceback import print_exc
+
 # Create your views here.
 def helloworld(request: HttpRequest) -> HttpResponse:
     return HttpResponse('Hello World')
@@ -110,10 +112,7 @@ class DatasourceCreateListView(generics.ListCreateAPIView):
     #FIXME: Upload limits?
 
     def post(self, request, *args, **kwargs):
-        owner = request.user
-        data = request.data
-        data['owner'] = owner.id
-        serializer = DatasourceSerializer(data=data, context={'request': request})
+        serializer = DatasourceSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -158,11 +157,15 @@ class ChartCreateListView(generics.ListCreateAPIView):
     # FIXME: Upload limits?
 
     def post(self, request, *args, **kwargs):
-        owner = request.user
-        data = request.data
-        data['owner'] = owner.id
-        data['config'] = str(data['config'])
-        serializer = ChartSerializer(data=data, context={'request': request})
+
+        datasource = Datasource.objects.get(id=request.data['datasource'])
+        owner_permission = IsDatasourceOwner()
+        shared_permission = DatasourceIsSharedWithUser()
+        if not(owner_permission.has_object_permission(request, self, datasource)
+               or shared_permission.has_object_permission(request, self, datasource)):
+            return Response("No such datasource or forbidden", status=status.HTTP_403_FORBIDDEN)
+
+        serializer = ChartSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -179,7 +182,7 @@ class ChartCreateListView(generics.ListCreateAPIView):
                     or shared_permission.has_object_permission(request, self, obj)
                     or public_permission.has_object_permission(request, self, obj)
                     ]
-        serializer = ChartSerializer(data=queryset, many=True)
+        serializer = ChartSerializer(data=queryset, many=True, context={'request': request})
         serializer.is_valid()
         return Response(serializer.data)
 
@@ -204,14 +207,9 @@ class ChartRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
         if not IsChartOwner().has_object_permission(request, self, obj):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
-        #Whitelist of changable parameters
-        # TODO: Set read-only on model
-        obj.scope_path = request.data.get('scope_path', obj.scope_path)
-        obj.config = request.data.get('config', obj.config)
-        obj.downloadable = request.data.get('downloadable', obj.downloadable)
-        obj.visibility = request.data.get('visibility', obj.visibility)
-        obj.save()
-        serializer = ChartSerializer(obj)
+        serializer = ChartSerializer(obj, data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
         return Response(serializer.data)
 
 
