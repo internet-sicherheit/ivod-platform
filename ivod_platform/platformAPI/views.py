@@ -9,6 +9,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import permissions
 
+from django.core.exceptions import ObjectDoesNotExist
+
 from traceback import print_exc
 
 # Create your views here.
@@ -225,3 +227,75 @@ class ChartRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
 
         current_object.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class ShareView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = serializers.Serializer
+
+    def get_affected_users(self, request):
+        affected_users = []
+        for pk in request.data.get("users", []):
+            try:
+                affected_users.append(User.objects.get(pk=pk))
+            except ObjectDoesNotExist:
+                return Response({'error': {'key': pk, 'reason': 'No such User'}}, status=status.HTTP_400_BAD_REQUEST)
+        return affected_users
+
+    def get_affected_groups(self, request):
+        affected_groups = []
+        for pk in request.data.get("groups", []):
+            try:
+                affected_groups.append(Group.objects.get(pk=pk))
+            except ObjectDoesNotExist:
+                return Response({'error': {'key': pk, 'reason': 'No such User'}}, status=status.HTTP_400_BAD_REQUEST)
+        return affected_groups
+
+    def get_object(self):
+        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def get(self, request, *args, **kwargs):
+        obj = self.get_object()
+        response = {'users': [user.id for user in obj.shared_users.all()],
+                    'groups': [group.id for group in obj.shared_groups.all()]}
+        return Response(response)
+
+    def put(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def patch(self, request, *args, **kwargs):
+        obj = self.get_object()
+        new_users = self.get_affected_users(request)
+        if type(new_users) == Response:
+            # Error response
+            return new_users
+        new_groups = self.get_affected_groups(request)
+        if type(new_groups) == Response:
+            # Error response
+            return new_groups
+        obj.shared_users.add(*new_users)
+        obj.shared_users.add(*new_groups)
+        return self.get(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        obj = self.get_object()
+        new_users = self.get_affected_users(request)
+        if type(new_users) == Response:
+            # Error response
+            return new_users
+        new_groups = self.get_affected_groups(request)
+        if type(new_groups) == Response:
+            # Error response
+            return new_groups
+        obj.shared_users.remove(*new_users)
+        obj.shared_users.remove(*new_groups)
+        return self.get(request, *args, **kwargs)
+
+class ChartShareView(ShareView):
+    permission_classes = [permissions.IsAuthenticated & IsChartOwner]
+    queryset = Chart.objects.all()
+
+
+class DatasourceShareView(ShareView):
+    permission_classes = [permissions.IsAuthenticated & IsDatasourceOwner]
+    queryset = Datasource.objects.all()
