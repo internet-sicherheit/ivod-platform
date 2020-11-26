@@ -7,7 +7,10 @@ from django.dispatch import receiver
 class Datasource(models.Model):
     source = models.URLField()
     scope_path = models.CharField(max_length=256)
-    owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="datasource_owner")
+
+    shared_users = models.ManyToManyField(User, related_name="datasource_shared_users")
+    shared_groups = models.ManyToManyField(Group, related_name="datasource_shared_groups")
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['owner','scope_path'],name='datasource_unique_user_scope_path'),
@@ -22,12 +25,15 @@ class Chart(models.Model):
 
     chart_name = models.CharField(max_length=256)
     scope_path = models.CharField(max_length=256)
-    owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="chart_owner")
     original_datasource = models.ForeignKey(Datasource, on_delete=models.SET_NULL, blank=True, null=True)
     #TODO: config in file or in db?
     config = models.CharField(max_length=8192)
     downloadable = models.BooleanField(default=False)
     visibility = models.IntegerField(default=VISIBILITY_PRIVATE)
+
+    shared_users = models.ManyToManyField(User, related_name="chart_shared_users")
+    shared_groups = models.ManyToManyField(Group, related_name="chart_shared_groups")
 
     class Meta:
         constraints = [
@@ -39,8 +45,8 @@ class EnhancedUser(models.Model):
     #TODO: Make auth_user private key
 
     auth_user = models.ForeignKey(User, on_delete=models.CASCADE)
-    datasources_shared_with_user = models.ManyToManyField(Datasource)
-    charts_shared_with_user = models.ManyToManyField(Chart)
+    #datasources_shared_with_user = models.ManyToManyField(Datasource)
+    #charts_shared_with_user = models.ManyToManyField(Chart)
 
     @receiver(post_save, sender=User)
     def on_create_user(sender, **kwargs):
@@ -50,8 +56,8 @@ class EnhancedUser(models.Model):
 
 class EnhancedGroup(models.Model):
     auth_group = models.ForeignKey(Group, on_delete=models.CASCADE)
-    datasources_shared_with_group = models.ManyToManyField(Datasource)
-    charts_shared_with_group = models.ManyToManyField(Chart)
+    #datasources_shared_with_group = models.ManyToManyField(Datasource)
+    #charts_shared_with_group = models.ManyToManyField(Chart)
 
     @receiver(post_save, sender=Group)
     def on_create_user(sender, **kwargs):

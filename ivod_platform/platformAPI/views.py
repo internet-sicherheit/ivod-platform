@@ -87,9 +87,11 @@ def debug_reset_database(request: HttpRequest) -> HttpResponse:
         downloadable=True,
         visibility=Chart.VISIBILITY_PUBLIC)
 
-    euser2 = EnhancedUser.objects.get(auth_user=user2)
-    euser2.charts_shared_with_user.add(chart2)
-    euser2.save()
+    #euser2 = EnhancedUser.objects.get(auth_user=user2)
+    chart2.shared_users.add(user2)
+    chart2.save()
+    # euser2.charts_shared_with_user.add(chart2)
+    # euser2.save()
 
 
     return HttpResponse('')

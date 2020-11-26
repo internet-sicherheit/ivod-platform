@@ -61,10 +61,10 @@ class PlatformAPITestCase(APITestCase):
             downloadable=True,
             visibility=Chart.VISIBILITY_PUBLIC)
 
-        euser2 = EnhancedUser.objects.get(auth_user=self.user2)
-        euser2.charts_shared_with_user.add(self.chart2)
-        euser2.datasources_shared_with_user.add(self.datasource1)
-        euser2.save()
+        self.chart2.shared_users.add(self.user2)
+        self.chart2.save()
+        self.datasource1.shared_users.add(self.user2)
+        self.datasource1.save()
 
     def test_datasources_list_unautenticated(self):
         # Access listing of datasources unauthenticated -> Error 403

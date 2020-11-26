@@ -5,34 +5,29 @@ from uuid import uuid4
 from pathlib import Path
 from django.contrib.auth.models import AnonymousUser
 
-class UserField(serializers.Field):
-
-    def to_internal_value(self, data):
-        user = User.objects.get(pk=data)
-        if not user:
-            raise serializers.ValidationError("No such user")
-        return user
-
-    def to_representation(self, value):
-        return value.id
-
-class DatasourceField(serializers.Field):
-
-    def to_representation(self, value):
-        return value.id
-
-    def to_internal_value(self, data):
-        datasource = Datasource.objects.get(pk=data)
-        if not datasource:
-            raise serializers.ValidationError("No such datasource")
-        return datasource
+# class UserField(serializers.Field):
+#
+#     def to_internal_value(self, data):
+#         user = User.objects.get(pk=data)
+#         if not user:
+#             raise serializers.ValidationError("No such user")
+#         return user
+#
+#     def to_representation(self, value):
+#         return value.id
+#
+# class DatasourceField(serializers.Field):
+#
+#     def to_representation(self, value):
+#         return value.id
+#
+#     def to_internal_value(self, data):
+#         datasource = Datasource.objects.get(pk=data)
+#         if not datasource:
+#             raise serializers.ValidationError("No such datasource")
+#         return datasource
 
 class ChartSerializer(serializers.ModelSerializer):
-    #TODO: DRY
-    # config = serializers.CharField(max_length=8192, required=False)
-    # downloadable = serializers.BooleanField(default=False,)
-    # visibility = serializers.IntegerField(default=Chart.VISIBILITY_PRIVATE)
-    # scope_path = serializers.CharField(max_length=256, required=False)
 
     class Meta:
         model = Chart
@@ -42,7 +37,9 @@ class ChartSerializer(serializers.ModelSerializer):
             'config': {'required': False},
             'downloadable': {'required': False},
             'visibility': {'required': False},
-            'scope_path': {'required': False}
+            'scope_path': {'required': False},
+            'shared_users': {'required': False},
+            'shared_groups': {'required': False}
         }
 
     def validate(self, data):
@@ -91,7 +88,9 @@ class DatasourceSerializer(serializers.ModelSerializer):
         fields = '__all__'
         extra_kwargs = {
             'source': {'required': False},
-            'owner': {'required': False}
+            'owner': {'required': False},
+            'shared_users': {'required': False},
+            'shared_groups': {'required': False}
         }
 
     def validate(self, data):

@@ -24,15 +24,7 @@ class ChartIsSharedWithUser(permissions.BasePermission):
         #Check if user is in request
         if not user:
             return False
-        e_user = EnhancedUser.objects.filter(auth_user=user)[0]
-        if not e_user:
-            return False
-        all_charts_shared = set()
-        all_charts_shared.update(e_user.charts_shared_with_user.all())
-        e_groups = [EnhancedGroup.objects.filter(auth_group=group) for group in user.groups.all()]
-        for e_group in e_groups:
-            all_charts_shared.update(e_group.charts_shared_with_group.all())
-        return obj in all_charts_shared
+        return user in obj.shared_users.all() or (obj.shared_groups.all() & user.groups.all())
 
 class ChartIsShared(permissions.BasePermission):
 
@@ -79,12 +71,4 @@ class DatasourceIsSharedWithUser(permissions.BasePermission):
         #Check if user is in request
         if not user:
             return False
-        e_user = EnhancedUser.objects.filter(auth_user=user)[0]
-        if not e_user:
-            return False
-        all_datasources_shared = set()
-        all_datasources_shared.update(e_user.datasources_shared_with_user.all())
-        e_groups = [EnhancedGroup.objects.filter(auth_group=group) for group in user.groups.all()]
-        for e_group in e_groups:
-            all_datasources_shared.update(e_group.charts_shared_with_group.all())
-        return obj in all_datasources_shared
+        return user in obj.shared_users.all() or (obj.shared_groups.all() & user.groups.all())
