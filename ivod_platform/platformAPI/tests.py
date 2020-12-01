@@ -420,4 +420,6 @@ class PlatformAPITestCase(APITestCase):
 
     #TODO: When sharing, check if groups are unaffected by actions on users and vice versa
 
+    #TODO: Check responses for values that should not be visible for all users to confirm correct filtering on serializer level
+
     #TODO: Differentiate between direct-share and group share

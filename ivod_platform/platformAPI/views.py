@@ -132,7 +132,7 @@ class DatasourceCreateListView(generics.ListCreateAPIView):
         serializer.is_valid()
         return Response(serializer.data)
 
-class DatasourceRetrieveDestroy(generics.RetrieveDestroyAPIView):
+class DatasourceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated & (IsDatasourceOwner | DatasourceIsSharedWithUser)]
     serializer_class = DatasourceSerializer
     queryset = Datasource.objects.all()
@@ -141,6 +141,13 @@ class DatasourceRetrieveDestroy(generics.RetrieveDestroyAPIView):
         obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
         self.check_object_permissions(self.request, obj)
         return obj
+
+    def put(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def patch(self, request, *args, **kwargs):
+        # FIXME: Add patch method to change scope_path
+        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
 
     def delete(self, request, *args, **kwargs):
         current_object = self.get_object()

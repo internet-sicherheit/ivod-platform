@@ -38,8 +38,9 @@ class ChartSerializer(serializers.ModelSerializer):
             'downloadable': {'required': False},
             'visibility': {'required': False},
             'scope_path': {'required': False},
-            'shared_users': {'required': False},
-            'shared_groups': {'required': False}
+            'owner': {'required': False, 'read_only': True},
+            'shared_users': {'required': False, 'write_only': True},
+            'shared_groups': {'required': False, 'write_only': True}
         }
 
     def validate(self, data):
@@ -54,6 +55,10 @@ class ChartSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Datasource is required for chart creation")
         if 'chart_name' not in data:
             raise serializers.ValidationError("Chart type must be given")
+        if 'scope_path' not in data:
+            raise serializers.ValidationError("Scope path must be given")
+        if 'config' not in data:
+            raise serializers.ValidationError("Config must be given")
         if self.context['request'].user == None or type(self.context['request'].user) == AnonymousUser:
             raise serializers.ValidationError("Only users may create Charts")
         return data
@@ -88,9 +93,9 @@ class DatasourceSerializer(serializers.ModelSerializer):
         fields = '__all__'
         extra_kwargs = {
             'source': {'required': False},
-            'owner': {'required': False},
-            'shared_users': {'required': False},
-            'shared_groups': {'required': False}
+            'owner': {'required': False, 'read_only': True},
+            'shared_users': {'required': False, 'write_only': True},
+            'shared_groups': {'required': False, 'write_only': True}
         }
 
     def validate(self, data):
@@ -111,6 +116,8 @@ class DatasourceSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("No scope_path specified")
         if 'url' not in data and 'data' not in data:
             raise serializers.ValidationError("Neither data nor url specified")
+        if 'url' in data and 'data' in data:
+            raise serializers.ValidationError("data and url must not be used together")
         if self.context['request'].user == None or type(self.context['request'].user) == AnonymousUser:
             raise serializers.ValidationError("Only users may create Charts")
         return data
