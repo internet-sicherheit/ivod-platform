@@ -14,7 +14,7 @@ urlpatterns = [
     path('charts/<pk>/shared/', ChartShareView.as_view(), name='chart-shared'),
     path('datasources/', DatasourceCreateListView.as_view(), name='datasource-add'),
     path('datasources/<pk>/', DatasourceRetrieveDestroy.as_view(), name='datasource-get'),
-    path('datasources/<pk>/shared/', DatasourceShareView.as_view(), name='chart-shared'),
+    path('datasources/<pk>/shared/', DatasourceShareView.as_view(), name='datasource-shared'),
 ]
 if DEBUG:
     urlpatterns.append(path("debug_reset_database", debug_reset_database))

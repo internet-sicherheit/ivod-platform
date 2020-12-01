@@ -231,6 +231,8 @@ class ChartRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
 class ShareView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = serializers.Serializer
 
+    #FIXME: Validate inputs for correct types
+
     def get_affected_users(self, request):
         affected_users = []
         for pk in request.data.get("users", []):
