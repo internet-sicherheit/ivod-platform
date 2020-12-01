@@ -66,6 +66,7 @@ class ChartSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data = self.validate_create(validated_data)
         user = self.context['request'].user
+        # TODO: How to handle shares during creation? Ignore and keep sharing a separate action?
         chart = Chart.objects.create(
             chart_name=validated_data['chart_name'],
             scope_path=validated_data['scope_path'],
@@ -92,8 +93,9 @@ class DatasourceSerializer(serializers.ModelSerializer):
         model = Datasource
         fields = '__all__'
         extra_kwargs = {
-            'source': {'required': False},
+            'source': {'required': False, 'read_only': True},
             'owner': {'required': False, 'read_only': True},
+            'scope_path': {'required': False},
             'shared_users': {'required': False, 'write_only': True},
             'shared_groups': {'required': False, 'write_only': True}
         }
@@ -103,12 +105,6 @@ class DatasourceSerializer(serializers.ModelSerializer):
         unvalidated_data.update(data)
         if 'source' in unvalidated_data:
             unvalidated_data.pop('source')
-        if 'url' in unvalidated_data:
-            #TODO: Validate URL here
-            pass
-        if 'data' in unvalidated_data:
-            #TODO: Validate actual data here:
-            pass
         return unvalidated_data
 
     def validate_create(self, data):
@@ -118,6 +114,12 @@ class DatasourceSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Neither data nor url specified")
         if 'url' in data and 'data' in data:
             raise serializers.ValidationError("data and url must not be used together")
+        if 'url' in data:
+            #TODO: Validate URL here
+            pass
+        else:
+            #TODO: Validate actual data here:
+            pass
         if self.context['request'].user == None or type(self.context['request'].user) == AnonymousUser:
             raise serializers.ValidationError("Only users may create Charts")
         return data
@@ -125,6 +127,7 @@ class DatasourceSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data = self.validate_create(validated_data)
         user = self.context['request'].user
+        #TODO: How to handle shares during creation? Ignore and keep sharing a separate action?
         if 'url' in validated_data:
             datasource = Datasource.objects.create(source=validated_data['url'], scope_path=validated_data['scope_path'], owner=user)
         else:
@@ -135,6 +138,11 @@ class DatasourceSerializer(serializers.ModelSerializer):
                 file.write(data.decode('utf-8'))
             datasource = Datasource.objects.create(source=file_path, scope_path=validated_data['scope_path'], owner=user)
         return datasource
+
+    def update(self, instance, validated_data):
+        instance.scope_path = validated_data.get('scope_path', instance.scope_path)
+        instance.save()
+        return instance
 
 class EnhancedUserSerializer(serializers.ModelSerializer):
     class Meta:

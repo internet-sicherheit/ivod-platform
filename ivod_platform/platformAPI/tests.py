@@ -161,6 +161,32 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data["scope_path"], "/file1")
 
+    def test_datasource_edit_owned(self):
+        # Change scope path on an owned datasource -> 200, scope path changed
+        data = { 'scope_path': '/test/datasource/edit/owned'}
+        url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
+        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        response = self.client.patch(url, data, format='json')
+        self.assertEquals(response.status_code, 200)
+        self.assertEquals(response.data["scope_path"], '/test/datasource/edit/owned')
+
+    def test_datasource_edit_owned_no_change(self):
+        # Dont change scope path on an owned datasource -> 200, scope path unchanged
+        data = {}
+        url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
+        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        response = self.client.patch(url, data, format='json')
+        self.assertEquals(response.status_code, 200)
+        self.assertEquals(response.data["scope_path"], self.datasource1.scope_path)
+
+    def test_datasource_edit_owned_unsupported_change(self):
+        # Change not existing field on an owned datasource -> 200, field is ignored
+        data = { 'NOT_ACTUALLY_A_FIELD' : 'NOT_ACTUALLY_DATA'}
+        url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
+        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        response = self.client.patch(url, data, format='json')
+        self.assertEquals(response.status_code, 200)
+
     def test_chart_delete_authenticated_public_only(self):
         # Delete a chart directly by its key, with it being public -> Error 403
         data = {}
@@ -310,6 +336,7 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(response.status_code, 403)
 
     def test_add_user_to_share_as_owner(self):
+        # As the owner, share a chart with another user -> 200, new user is added
         data = {'users': [self.user3.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
         self.assertTrue(self.client.login(username='user1', password='00000000'))
@@ -326,6 +353,7 @@ class PlatformAPITestCase(APITestCase):
 
 
     def test_add_user_to_share_as_shared(self):
+        # As someone with the chart shared, share a chart with another user -> 403
         data = {'users': [self.user3.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
         self.assertTrue(self.client.login(username='user2', password='00000000'))
@@ -334,6 +362,7 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(response.status_code, 403)
 
     def test_add_user_to_share_authenticated_only(self):
+        # As someone with the chart NOT shared, share a chart with another user -> 403
         data = {'users': [self.user3.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
         self.assertTrue(self.client.login(username='user3', password='00000000'))
@@ -342,6 +371,7 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(response.status_code, 403)
 
     def test_del_shared_user_from_share_as_owner(self):
+        # As the owner, unshare a chart with another user -> 200, user is not in shares anymore
         data = {'users': [self.user2.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
         self.assertTrue(self.client.login(username='user1', password='00000000'))
@@ -356,6 +386,7 @@ class PlatformAPITestCase(APITestCase):
 
 
     def test_del_shared_from_share_as_shared(self):
+        # As someone with the chart shared, unshare a chart with another user -> 403
         data = {'users': [self.user2.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
         self.assertTrue(self.client.login(username='user2', password='00000000'))
@@ -364,6 +395,7 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(response.status_code, 403)
 
     def test_del_shared_from_share_authenticated_only(self):
+        # As someone with the chart NOT shared, unshare a chart with another user -> 403
         data = {'users': [self.user2.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
         self.assertTrue(self.client.login(username='user3', password='00000000'))
@@ -372,6 +404,7 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(response.status_code, 403)
 
     def test_del_not_shared_user_from_share_as_owner(self):
+        # Unshare a chart that wasnt actually shared -> 200, chart still not shared with user
         data = {'users': [self.user3.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
         self.assertTrue(self.client.login(username='user1', password='00000000'))
@@ -386,6 +419,7 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(data_before.data['users'], [self.user2.id])
 
     def test_share_with_already_shared_user_from_share_as_owner(self):
+        # Share a chart that was already shared -> 200, chart shared with user
         data = {'users': [self.user2.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
         self.assertTrue(self.client.login(username='user1', password='00000000'))
@@ -400,6 +434,7 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(data_before.data['users'], [self.user2.id])
 
     def test_chart_access_after_share(self):
+        # Share a chart, check if permissions changed
         data = {'users': [self.user3.id]}
         share_url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
         access_url = reverse("chart-get", kwargs={'pk': self.chart2.id})

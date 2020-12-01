@@ -146,8 +146,16 @@ class DatasourceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIVi
         return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def patch(self, request, *args, **kwargs):
-        # FIXME: Add patch method to change scope_path
-        return Response(status=status.HTTP_501_NOT_IMPLEMENTED)
+        current_object = self.get_object()
+        if type(current_object) != Datasource:
+            return current_object
+        owner_permission = IsDatasourceOwner()
+        if not owner_permission.has_object_permission(request, self, current_object):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        serializer = DatasourceSerializer(current_object, data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
 
     def delete(self, request, *args, **kwargs):
         current_object = self.get_object()
