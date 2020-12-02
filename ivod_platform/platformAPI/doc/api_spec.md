@@ -106,7 +106,7 @@
         - Type: Shares
         - Code: 200
         
-## datasource-get
+## datasource-add
 - url: datasources/
 - methods: [GET, POST]
 - GET:
@@ -124,7 +124,7 @@
                 - Description: URL that points to the datasource
                 - Type: URL
             - 'data':
-                - Description: Data to be used as datasource
+                - Description: Data to be used as datasource, base64 encoded
                 - Type: string
     - Returns:
         - Format: JSON
