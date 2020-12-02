@@ -28,7 +28,7 @@ class Chart(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="chart_owner")
     original_datasource = models.ForeignKey(Datasource, on_delete=models.SET_NULL, blank=True, null=True)
     #TODO: config in file or in db?
-    config = models.CharField(max_length=8192)
+    config = models.CharField(max_length=8192, blank=True, null=True)
     downloadable = models.BooleanField(default=False)
     visibility = models.IntegerField(default=VISIBILITY_PRIVATE)
 

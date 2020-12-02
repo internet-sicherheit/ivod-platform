@@ -5,13 +5,12 @@ from .models import EnhancedUser, EnhancedGroup, Datasource, Chart
 from rest_framework import generics
 from .serializers import *
 from .permissions import *
+from .util import *
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import permissions
 
 from django.core.exceptions import ObjectDoesNotExist
-
-from traceback import print_exc
 
 # Create your views here.
 def helloworld(request: HttpRequest) -> HttpResponse:
@@ -43,6 +42,12 @@ def debug_reset_database(request: HttpRequest) -> HttpResponse:
 
     datasource1 = Datasource.objects.create(source="file://some/file1", scope_path="/file1", owner=user1)
     datasource2 = Datasource.objects.create(source="file://some/file2", scope_path="/file2", owner=user2)
+
+    #Actual sample datasources
+    base_path = Path(__file__).resolve().parent.joinpath("sample-data").joinpath("data").joinpath("metadata")
+    sample1 = Datasource.objects.create(source=base_path.joinpath("groupdata.json"), scope_path="/groupdata", owner=user1)
+    sample2 = Datasource.objects.create(source=base_path.joinpath("numerical.json"), scope_path="/numerical", owner=user1)
+    sample3 = Datasource.objects.create(source=base_path.joinpath("simple_series.json"), scope_path="/simple_series", owner=user1)
 
     chart1 = Chart.objects.create(
         chart_name="piechart",
@@ -316,3 +321,19 @@ class ChartShareView(ShareView):
 class DatasourceShareView(ShareView):
     permission_classes = [permissions.IsAuthenticated & IsDatasourceOwner]
     queryset = Datasource.objects.all()
+
+class ChartTypeView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated & (IsDatasourceOwner | DatasourceIsSharedWithUser)]
+    queryset = Datasource.objects.all()
+    serializer_class = serializers.Serializer
+
+    def get_object(self):
+        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def get(self, request, *args, **kwargs):
+        datasource = self.get_object()
+        #TODO: Error handling (Source unreachable, pive error)
+        supported = get_chart_types_for_datasource(datasource)
+        return Response(supported)

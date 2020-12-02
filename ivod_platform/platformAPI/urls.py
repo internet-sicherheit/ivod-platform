@@ -5,7 +5,7 @@ from ivod_platform.settings import DEBUG
 from .views import debug_reset_database
 from .views import helloworld
 from .models import Chart
-from .views import debug_reset_database, ChartCreateListView, ChartRetrieveUpdateDestroy, DatasourceCreateListView, DatasourceRetrieveUpdateDestroyAPIView, ChartShareView, DatasourceShareView
+from .views import debug_reset_database, ChartCreateListView, ChartRetrieveUpdateDestroy, DatasourceCreateListView, DatasourceRetrieveUpdateDestroyAPIView, ChartShareView, DatasourceShareView, ChartTypeView
 from .serializers import *
 
 urlpatterns = [
@@ -15,6 +15,7 @@ urlpatterns = [
     path('datasources/', DatasourceCreateListView.as_view(), name='datasource-add'),
     path('datasources/<pk>/', DatasourceRetrieveUpdateDestroyAPIView.as_view(), name='datasource-get'),
     path('datasources/<pk>/shared/', DatasourceShareView.as_view(), name='datasource-shared'),
+    path('datasources/<pk>/charttypes', ChartTypeView.as_view(), name='datasource-charttypes')
 ]
 if DEBUG:
     urlpatterns.append(path("debug_reset_database", debug_reset_database))

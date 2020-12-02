@@ -1,6 +1,7 @@
 from rest_framework.test import APITestCase
 from django.shortcuts import reverse
 from .permissions import *
+from pathlib import Path
 # Create your tests here.
 
 
@@ -18,9 +19,9 @@ class PlatformAPITestCase(APITestCase):
         self.group2 = Group.objects.create(name="group2")
         self.group1.user_set.add(self.user4)
 
-
-        self.datasource1 = Datasource.objects.create(source="file://some/file1", scope_path="/file1", owner=self.user1)
-        self.datasource2 = Datasource.objects.create(source="file://some/file2", scope_path="/file2", owner=self.user2)
+        base_path = Path(__file__).resolve().parent.joinpath("sample-data").joinpath("data").joinpath("metadata")
+        self.datasource1 = Datasource.objects.create(source=base_path.joinpath("groupdata.json"), scope_path="/file1", owner=self.user1)
+        self.datasource2 = Datasource.objects.create(source=base_path.joinpath("numerical.json"), scope_path="/file2", owner=self.user2)
 
         self.chart1 = Chart.objects.create(
             chart_name="piechart",
@@ -311,7 +312,7 @@ class PlatformAPITestCase(APITestCase):
                 'downloadable': True,
                 'visibility': Chart.VISIBILITY_PRIVATE,
                 'scope_path': '/test/create/chart',
-                'chart_name': 'TESTNAME',
+                'chart_name': 'chordchart',
                 'datasource': self.datasource1.id
                 }
         url = reverse("chart-add")

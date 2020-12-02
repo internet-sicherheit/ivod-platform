@@ -5,27 +5,7 @@ from uuid import uuid4
 from pathlib import Path
 from django.contrib.auth.models import AnonymousUser
 
-# class UserField(serializers.Field):
-#
-#     def to_internal_value(self, data):
-#         user = User.objects.get(pk=data)
-#         if not user:
-#             raise serializers.ValidationError("No such user")
-#         return user
-#
-#     def to_representation(self, value):
-#         return value.id
-#
-# class DatasourceField(serializers.Field):
-#
-#     def to_representation(self, value):
-#         return value.id
-#
-#     def to_internal_value(self, data):
-#         datasource = Datasource.objects.get(pk=data)
-#         if not datasource:
-#             raise serializers.ValidationError("No such datasource")
-#         return datasource
+from .util import *
 
 class ChartSerializer(serializers.ModelSerializer):
 
@@ -57,10 +37,13 @@ class ChartSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Chart type must be given")
         if 'scope_path' not in data:
             raise serializers.ValidationError("Scope path must be given")
-        if 'config' not in data:
-            raise serializers.ValidationError("Config must be given")
         if self.context['request'].user == None or type(self.context['request'].user) == AnonymousUser:
             raise serializers.ValidationError("Only users may create Charts")
+
+        # FIXME: Read base path from config
+        supported = get_chart_types_for_datasource(data["datasource"])
+        if data["chart_name"] not in supported:
+            raise serializers.ValidationError(f"Chart type not supported for this datasource. Supported types are: {supported}")
         return data
 
     def create(self, validated_data):
@@ -76,6 +59,14 @@ class ChartSerializer(serializers.ModelSerializer):
             downloadable=validated_data.get('downloadable',False),
             visibility=validated_data.get('downloadable', Chart.VISIBILITY_PRIVATE)
         )
+        try:
+            base_path = Path(__file__).resolve().parent.parent.joinpath("chart_data")
+            base_path.mkdir(exist_ok=True)
+            generate_chart(datasource=validated_data["datasource"], chart_type=validated_data["chart_name"], output_path=base_path.joinpath(f"{chart.id}"), config=validated_data["config"])
+        except Exception as e:
+            # Remove stale db entry and reraise exception
+            chart.delete()
+            raise e
         return chart
 
     def update(self, instance, validated_data):
@@ -83,6 +74,11 @@ class ChartSerializer(serializers.ModelSerializer):
         instance.config = validated_data.get('config', instance.config)
         instance.downloadable = validated_data.get('downloadable', instance.downloadable)
         instance.visibility = validated_data.get('visibility', instance.visibility)
+
+        # FIXME: This doesnt work, may only change config on existing charts. Datasource may be gone. Does pive need to be touched?
+        #base_path = Path(__file__).resolve().parent.parent.joinpath("chart_data")
+        #generate_chart(datasource=instance.datasource, chart_type=validated_data["chart_name"], output_path=base_path.joinpath(f"{instance.id}"), config=validated_data["config"])
+
         instance.save()
         return instance
 
