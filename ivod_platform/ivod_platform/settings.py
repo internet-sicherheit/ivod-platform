@@ -122,3 +122,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 
 STATIC_URL = '/static/'
+
+DATASET_BASE_URL = "./"
+CHART_BASE_PATH = str(Path(__file__).resolve().parent.parent.joinpath("chart_data"))
+DATASOURCE_BASE_PATH = str(Path(__file__).resolve().parent.parent.joinpath("datasources"))

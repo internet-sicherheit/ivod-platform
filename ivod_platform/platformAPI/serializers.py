@@ -65,7 +65,7 @@ class ChartSerializer(serializers.ModelSerializer):
             #FIXME: Read base path from config
             base_path = get_chart_base_path()
             base_path.mkdir(exist_ok=True)
-            generate_chart(datasource=validated_data["datasource"], chart_type=validated_data["chart_name"], output_path=base_path.joinpath(f"{chart.id}"), config=validated_data["config"])
+            generate_chart(datasource=validated_data["datasource"], chart_id=chart.id, chart_type=validated_data["chart_name"], output_path=base_path.joinpath(f"{chart.id}"), config=validated_data["config"])
         except Exception as e:
             # Remove stale db entry and reraise exception
             chart.delete()
@@ -132,8 +132,7 @@ class DatasourceSerializer(serializers.ModelSerializer):
             datasource = Datasource.objects.create(source=validated_data['url'], scope_path=validated_data['scope_path'], owner=user)
         else:
             data = b64decode(validated_data['data'])
-            #FIXME: Read base path from config
-            file_path = Path(__file__).resolve().parent.parent.joinpath("datasources").joinpath(uuid4().hex)
+            file_path = get_datasource_base_path().joinpath(uuid4().hex)
             with file_path.open("w") as file:
                 file.write(data.decode('utf-8'))
             datasource = Datasource.objects.create(source=file_path, scope_path=validated_data['scope_path'], owner=user)

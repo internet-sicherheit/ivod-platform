@@ -40,7 +40,7 @@ class PlatformAPITestCase(APITestCase):
             config="{}",
             downloadable=True,
             visibility=Chart.VISIBILITY_PRIVATE)
-        generate_chart(datasource=self.datasource1, chart_type="piechart", output_path=base_path.joinpath(f"{self.chart1.id}"), config="{}")
+        generate_chart(datasource=self.datasource1, chart_id=self.chart1.id, chart_type="piechart", output_path=base_path.joinpath(f"{self.chart1.id}"), config="{}")
 
         self.chart2 = Chart.objects.create(
             chart_name="piechart",
@@ -50,7 +50,7 @@ class PlatformAPITestCase(APITestCase):
             config="{}",
             downloadable=False,
             visibility=Chart.VISIBILITY_SHARED)
-        generate_chart(datasource=self.datasource1, chart_type="piechart",
+        generate_chart(datasource=self.datasource1, chart_id=self.chart2.id, chart_type="piechart",
                        output_path=base_path.joinpath(f"{self.chart2.id}"), config="{}")
 
         self.chart3 = Chart.objects.create(
@@ -61,7 +61,7 @@ class PlatformAPITestCase(APITestCase):
             config="{}",
             downloadable=True,
             visibility=Chart.VISIBILITY_PRIVATE)
-        generate_chart(datasource=self.datasource2, chart_type="linechart",
+        generate_chart(datasource=self.datasource2, chart_id=self.chart3.id, chart_type="linechart",
                        output_path=base_path.joinpath(f"{self.chart3.id}"), config="{}")
 
         self.chart4 = Chart.objects.create(
@@ -72,7 +72,7 @@ class PlatformAPITestCase(APITestCase):
             config="{}",
             downloadable=True,
             visibility=Chart.VISIBILITY_PRIVATE)
-        generate_chart(datasource=self.datasource2, chart_type="linechart",
+        generate_chart(datasource=self.datasource2, chart_id=self.chart4.id, chart_type="linechart",
                        output_path=base_path.joinpath(f"{self.chart4.id}"), config="{}")
 
         self.chart5 = Chart.objects.create(
@@ -83,7 +83,7 @@ class PlatformAPITestCase(APITestCase):
             config="{}",
             downloadable=True,
             visibility=Chart.VISIBILITY_PUBLIC)
-        generate_chart(datasource=self.datasource2, chart_type="linechart",
+        generate_chart(datasource=self.datasource2, chart_id=self.chart5.id, chart_type="linechart",
                        output_path=base_path.joinpath(f"{self.chart5.id}"), config="{}")
 
         self.chart2.shared_users.add(self.user2)
