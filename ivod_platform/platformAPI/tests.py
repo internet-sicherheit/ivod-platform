@@ -2,12 +2,15 @@ from rest_framework.test import APITestCase
 from django.shortcuts import reverse
 from .permissions import *
 from pathlib import Path
+from shutil import rmtree
+from .util import generate_chart, get_chart_base_path, modify_chart
 # Create your tests here.
 
 
 class PlatformAPITestCase(APITestCase):
 
     def setUp(self):
+        #TODO: Actually generate datasources and charts with the API endpoints
         self.admin = User.objects.create_superuser(username="admin", email=None, password="00000000")
         self.user1 = User.objects.create_user(username="user1", email=None, password="00000000")
         self.user2 = User.objects.create_user(username="user2", email=None, password="00000000")
@@ -19,9 +22,15 @@ class PlatformAPITestCase(APITestCase):
         self.group2 = Group.objects.create(name="group2")
         self.group1.user_set.add(self.user4)
 
-        base_path = Path(__file__).resolve().parent.joinpath("sample-data").joinpath("data").joinpath("metadata")
-        self.datasource1 = Datasource.objects.create(source=base_path.joinpath("groupdata.json"), scope_path="/file1", owner=self.user1)
-        self.datasource2 = Datasource.objects.create(source=base_path.joinpath("numerical.json"), scope_path="/file2", owner=self.user2)
+        datasource_base_path = Path(__file__).resolve().parent.joinpath("sample-data").joinpath("data").joinpath("metadata")
+        self.datasource1 = Datasource.objects.create(source=datasource_base_path.joinpath("simple_series.json"), scope_path="/file1", owner=self.user1)
+        self.datasource2 = Datasource.objects.create(source=datasource_base_path.joinpath("numerical.json"), scope_path="/file2", owner=self.user2)
+
+
+        base_path = get_chart_base_path()
+        if base_path.exists():
+            rmtree(path=base_path)
+        base_path.mkdir(exist_ok=True)
 
         self.chart1 = Chart.objects.create(
             chart_name="piechart",
@@ -31,6 +40,7 @@ class PlatformAPITestCase(APITestCase):
             config="{}",
             downloadable=True,
             visibility=Chart.VISIBILITY_PRIVATE)
+        generate_chart(datasource=self.datasource1, chart_type="piechart", output_path=base_path.joinpath(f"{self.chart1.id}"), config="{}")
 
         self.chart2 = Chart.objects.create(
             chart_name="piechart",
@@ -40,33 +50,41 @@ class PlatformAPITestCase(APITestCase):
             config="{}",
             downloadable=False,
             visibility=Chart.VISIBILITY_SHARED)
+        generate_chart(datasource=self.datasource1, chart_type="piechart",
+                       output_path=base_path.joinpath(f"{self.chart2.id}"), config="{}")
 
         self.chart3 = Chart.objects.create(
-            chart_name="barchart",
-            scope_path="/barchart1",
+            chart_name="linechart",
+            scope_path="/linechart1",
             owner=self.user2,
             original_datasource=self.datasource2,
             config="{}",
             downloadable=True,
             visibility=Chart.VISIBILITY_PRIVATE)
+        generate_chart(datasource=self.datasource2, chart_type="linechart",
+                       output_path=base_path.joinpath(f"{self.chart3.id}"), config="{}")
 
         self.chart4 = Chart.objects.create(
-            chart_name="barchart",
-            scope_path="/barchart2",
+            chart_name="linechart",
+            scope_path="/linechart2",
             owner=self.user2,
             original_datasource=self.datasource2,
             config="{}",
             downloadable=True,
             visibility=Chart.VISIBILITY_PRIVATE)
+        generate_chart(datasource=self.datasource2, chart_type="linechart",
+                       output_path=base_path.joinpath(f"{self.chart4.id}"), config="{}")
 
         self.chart5 = Chart.objects.create(
-            chart_name="barchart",
-            scope_path="/barchart3",
+            chart_name="linechart",
+            scope_path="/linechart3",
             owner=self.user2,
             original_datasource=self.datasource2,
             config="{}",
             downloadable=True,
             visibility=Chart.VISIBILITY_PUBLIC)
+        generate_chart(datasource=self.datasource2, chart_type="linechart",
+                       output_path=base_path.joinpath(f"{self.chart5.id}"), config="{}")
 
         self.chart2.shared_users.add(self.user2)
         self.chart2.shared_groups.add(self.group1)
@@ -108,7 +126,7 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(response.status_code, 200)
         #There is 1 public chart in the database
         self.assertEquals(len(response.data), 1)
-        self.assertEquals(response.data[0]["scope_path"], "/barchart3")
+        self.assertEquals(response.data[0]["scope_path"], "/linechart3")
 
     def test_chart_read_not_shared_not_owned(self):
         # Access a chart directly by its key, without access rights -> Error 403
@@ -267,12 +285,12 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data['scope_path'], '/new/scope')
 
-        data = {'config': 'new config'}
+        data = {'config': '{\"info\": \"new config\"}'}
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
-        self.assertEquals(response.data['config'], 'new config')
+        self.assertEquals(response.data['config'], '{\"info\": \"new config\"}')
 
         data = {'downloadable': False}
         response = self.client.patch(url, data, format='json')
@@ -312,7 +330,7 @@ class PlatformAPITestCase(APITestCase):
                 'downloadable': True,
                 'visibility': Chart.VISIBILITY_PRIVATE,
                 'scope_path': '/test/create/chart',
-                'chart_name': 'chordchart',
+                'chart_name': 'barchart',
                 'datasource': self.datasource1.id
                 }
         url = reverse("chart-add")
