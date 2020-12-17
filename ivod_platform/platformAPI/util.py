@@ -26,7 +26,7 @@ def generate_chart(datasource, chart_id, chart_type, output_path, config=None):
         dataset_base_url += '/'
     #TODO: Change format of dataset url to omit chart type
     chart.set_dataset_url(f"{dataset_base_url}{chart_id}/{chart_type}.json")
-    _ = env.render(chart)
+    _ = env.render(chart, filenames={'chart.js': None})
     _ = env.render_code(chart)
 
 def modify_chart(persisted_data_path, output_path, config_string):
@@ -36,7 +36,7 @@ def modify_chart(persisted_data_path, output_path, config_string):
     env = environment.Environment(inputmanager=manager, outputmanager=outputmanager.FolderOutputManager(output_path))
     chart = env.load_raw(persisted_data)
     chart.load_from_dict(json.loads(config_string))
-    _ = env.render(chart)
+    _ = env.render(chart, filenames={'chart.js': None})
     _ = env.render_code(chart)
 
 def get_datasource_base_path():

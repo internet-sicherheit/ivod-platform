@@ -21,8 +21,6 @@ class PlatformAPITestCase(APITestCase):
         self.assertTrue(self.client.login(username=user, password=password))
         (SERVER_NAME, SERVER_PORT) = self.get_server_address()
         response = self.client.post(url, data, format='json', SERVER_NAME=SERVER_NAME, SERVER_PORT=SERVER_PORT)
-        with Path("/tmp").joinpath("debug.html").open("wb") as outfile:
-            outfile.write(response.content)
         self.client.logout()
         self.assertEquals(response.status_code, 201)
         datasource = Datasource.objects.get(id=response.data['id'])
