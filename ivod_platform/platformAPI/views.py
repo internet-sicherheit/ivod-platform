@@ -6,6 +6,7 @@ from rest_framework import generics
 from .serializers import *
 from .permissions import *
 from .util import *
+from .tests import PlatformAPITestCase
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import permissions
@@ -34,72 +35,11 @@ def debug_reset_database(request: HttpRequest) -> HttpResponse:
     for chart in Chart.objects.all():
         chart.delete()
 
-    admin = User.objects.create_superuser(username="admin", email=None, password="00000000")
-    user1 = User.objects.create_user(username="user1", email=None, password="00000000")
-    user2 = User.objects.create_user(username="user2", email=None, password="00000000")
-    # Use user3 for a authenticated, but otherwise no permissions
-    user3 = User.objects.create_user(username="user3", email=None, password="00000000")
-
-    datasource1 = Datasource.objects.create(source="file://some/file1", scope_path="/file1", owner=user1)
-    datasource2 = Datasource.objects.create(source="file://some/file2", scope_path="/file2", owner=user2)
-
-    #Actual sample datasources
-    base_path = Path(__file__).resolve().parent.joinpath("sample-data").joinpath("data").joinpath("metadata")
-    sample1 = Datasource.objects.create(source=base_path.joinpath("groupdata.json"), scope_path="/groupdata", owner=user1)
-    sample2 = Datasource.objects.create(source=base_path.joinpath("numerical.json"), scope_path="/numerical", owner=user1)
-    sample3 = Datasource.objects.create(source=base_path.joinpath("simple_series.json"), scope_path="/simple_series", owner=user1)
-
-    chart1 = Chart.objects.create(
-        chart_name="piechart",
-        scope_path="/piechart1",
-        owner=user1,
-        original_datasource=datasource1,
-        config="{}",
-        downloadable=True,
-        visibility=Chart.VISIBILITY_PRIVATE)
-
-    chart2 = Chart.objects.create(
-        chart_name="piechart",
-        scope_path="/piechart2",
-        owner=user1,
-        original_datasource=datasource1,
-        config="{}",
-        downloadable=False,
-        visibility=Chart.VISIBILITY_SHARED)
-
-    chart3 = Chart.objects.create(
-        chart_name="barchart",
-        scope_path="/barchart1",
-        owner=user2,
-        original_datasource=datasource2,
-        config="{}",
-        downloadable=True,
-        visibility=Chart.VISIBILITY_PRIVATE)
-
-    chart4 = Chart.objects.create(
-        chart_name="barchart",
-        scope_path="/barchart2",
-        owner=user2,
-        original_datasource=datasource2,
-        config="{}",
-        downloadable=True,
-        visibility=Chart.VISIBILITY_PRIVATE)
-
-    chart5 = Chart.objects.create(
-        chart_name="barchart",
-        scope_path="/barchart3",
-        owner=user2,
-        original_datasource=datasource2,
-        config="{}",
-        downloadable=True,
-        visibility=Chart.VISIBILITY_PUBLIC)
-
-    #euser2 = EnhancedUser.objects.get(auth_user=user2)
-    chart2.shared_users.add(user2)
-    chart2.save()
-    # euser2.charts_shared_with_user.add(chart2)
-    # euser2.save()
-
+    case = PlatformAPITestCase()
+    case.client = case.client_class()
+    case.SERVER_NAME = request.get_host().split(":")[0]
+    case.SERVER_PORT = request.get_port()
+    case.setUp()
 
     return HttpResponse('')
 

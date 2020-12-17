@@ -3,11 +3,51 @@ from django.shortcuts import reverse
 from .permissions import *
 from pathlib import Path
 from shutil import rmtree
-from .util import generate_chart, get_chart_base_path, modify_chart
+from .util import generate_chart, get_chart_base_path, get_datasource_base_path
+from base64 import b64encode
 # Create your tests here.
 
 
 class PlatformAPITestCase(APITestCase):
+
+    def get_server_address(self):
+        SERVER_NAME = getattr(self, 'SERVER_NAME', 'testserver')
+        SERVER_PORT = getattr(self, 'SERVER_PORT', 80)
+        return (SERVER_NAME,SERVER_PORT)
+
+    def create_datasource(self, user, password, scope_path, data):
+        data = {'data': f'{b64encode(data).decode(encoding="utf-8")}', 'scope_path': scope_path}
+        url = reverse("datasource-add")
+        self.assertTrue(self.client.login(username=user, password=password))
+        (SERVER_NAME, SERVER_PORT) = self.get_server_address()
+        response = self.client.post(url, data, format='json', SERVER_NAME=SERVER_NAME, SERVER_PORT=SERVER_PORT)
+        with Path("/tmp").joinpath("debug.html").open("wb") as outfile:
+            outfile.write(response.content)
+        self.client.logout()
+        self.assertEquals(response.status_code, 201)
+        datasource = Datasource.objects.get(id=response.data['id'])
+        self.assertIsNotNone(datasource)
+        return datasource
+
+    def create_chart(self, user, password, config, downloadable, visibility, scope_path, chart_name, datasource_id):
+        data = {'config': config,
+                'downloadable': downloadable,
+                'visibility': visibility,
+                'scope_path': scope_path,
+                'chart_name': chart_name,
+                'datasource': datasource_id
+                }
+        url = reverse("chart-add")
+        self.assertTrue(self.client.login(username=user, password=password))
+        (SERVER_NAME, SERVER_PORT) = self.get_server_address()
+        response = self.client.post(url, data, format='json', SERVER_NAME=SERVER_NAME, SERVER_PORT=SERVER_PORT)
+        self.client.logout()
+        self.assertEquals(response.status_code, 201)
+        chart = Chart.objects.get(id=response.data['id'])
+        self.assertIsNotNone(chart)
+        return chart
+
+
 
     def setUp(self):
         #TODO: Actually generate datasources and charts with the API endpoints
@@ -22,69 +62,32 @@ class PlatformAPITestCase(APITestCase):
         self.group2 = Group.objects.create(name="group2")
         self.group1.user_set.add(self.user4)
 
-        datasource_base_path = Path(__file__).resolve().parent.joinpath("sample-data").joinpath("data").joinpath("metadata")
-        self.datasource1 = Datasource.objects.create(source=datasource_base_path.joinpath("simple_series.json"), scope_path="/file1", owner=self.user1)
-        self.datasource2 = Datasource.objects.create(source=datasource_base_path.joinpath("numerical.json"), scope_path="/file2", owner=self.user2)
+        datasource_output_path = get_datasource_base_path()
+        if datasource_output_path.exists():
+            rmtree(path=datasource_output_path)
+        datasource_output_path.mkdir(exist_ok=True, parents=True)
 
+        datasource_base_path = Path(__file__).resolve().parent.joinpath("sample-data").joinpath("data").joinpath("metadata")
+        with datasource_base_path.joinpath("simple_series.json").open("rb") as source_file:
+            self.datasource1 = self.create_datasource(self.user1.username, "00000000", "/file1", source_file.read())
+        with datasource_base_path.joinpath("numerical.json").open("rb") as source_file:
+            self.datasource2 = self.create_datasource(self.user2.username, "00000000", "/file2", source_file.read())
 
         base_path = get_chart_base_path()
         if base_path.exists():
             rmtree(path=base_path)
         base_path.mkdir(exist_ok=True, parents=True)
 
-        self.chart1 = Chart.objects.create(
-            chart_name="piechart",
-            scope_path="/piechart1",
-            owner=self.user1,
-            original_datasource=self.datasource1,
-            config="{}",
-            downloadable=True,
-            visibility=Chart.VISIBILITY_PRIVATE)
-        generate_chart(datasource=self.datasource1, chart_id=self.chart1.id, chart_type="piechart", output_path=base_path.joinpath(f"{self.chart1.id}"), config="{}")
+        self.chart1 = self.create_chart(self.user1.username, "00000000", "{}", True, Chart.VISIBILITY_PRIVATE, "/piechart1", "piechart", self.datasource1.id)
 
-        self.chart2 = Chart.objects.create(
-            chart_name="piechart",
-            scope_path="/piechart2",
-            owner=self.user1,
-            original_datasource=self.datasource1,
-            config="{}",
-            downloadable=False,
-            visibility=Chart.VISIBILITY_SHARED)
-        generate_chart(datasource=self.datasource1, chart_id=self.chart2.id, chart_type="piechart",
-                       output_path=base_path.joinpath(f"{self.chart2.id}"), config="{}")
-
-        self.chart3 = Chart.objects.create(
-            chart_name="linechart",
-            scope_path="/linechart1",
-            owner=self.user2,
-            original_datasource=self.datasource2,
-            config="{}",
-            downloadable=True,
-            visibility=Chart.VISIBILITY_PRIVATE)
-        generate_chart(datasource=self.datasource2, chart_id=self.chart3.id, chart_type="linechart",
-                       output_path=base_path.joinpath(f"{self.chart3.id}"), config="{}")
-
-        self.chart4 = Chart.objects.create(
-            chart_name="linechart",
-            scope_path="/linechart2",
-            owner=self.user2,
-            original_datasource=self.datasource2,
-            config="{}",
-            downloadable=True,
-            visibility=Chart.VISIBILITY_PRIVATE)
-        generate_chart(datasource=self.datasource2, chart_id=self.chart4.id, chart_type="linechart",
-                       output_path=base_path.joinpath(f"{self.chart4.id}"), config="{}")
-
-        self.chart5 = Chart.objects.create(
-            chart_name="linechart",
-            scope_path="/linechart3",
-            owner=self.user2,
-            original_datasource=self.datasource2,
-            config="{}",
-            downloadable=True,
-            visibility=Chart.VISIBILITY_PUBLIC)
-        generate_chart(datasource=self.datasource2, chart_id=self.chart5.id, chart_type="linechart",
-                       output_path=base_path.joinpath(f"{self.chart5.id}"), config="{}")
+        self.chart2 = self.create_chart(self.user1.username, "00000000", "{}", False, Chart.VISIBILITY_SHARED,
+                                        "/piechart2", "piechart", self.datasource1.id)
+        self.chart3 = self.create_chart(self.user2.username, "00000000", "{}", False, Chart.VISIBILITY_PRIVATE,
+                                        "/linechart1", "linechart", self.datasource2.id)
+        self.chart4 = self.create_chart(self.user2.username, "00000000", "{}", True, Chart.VISIBILITY_PRIVATE,
+                                        "/linechart2", "linechart", self.datasource2.id)
+        self.chart5 = self.create_chart(self.user2.username, "00000000", "{}", True, Chart.VISIBILITY_PUBLIC,
+                                        "/linechart3", "linechart", self.datasource2.id)
 
         self.chart2.shared_users.add(self.user2)
         self.chart2.shared_groups.add(self.group1)

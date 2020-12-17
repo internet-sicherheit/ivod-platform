@@ -59,7 +59,7 @@ class ChartSerializer(serializers.ModelSerializer):
             original_datasource=validated_data['datasource'],
             config=validated_data['config'],
             downloadable=validated_data.get('downloadable',False),
-            visibility=validated_data.get('downloadable', Chart.VISIBILITY_PRIVATE)
+            visibility=validated_data.get('visibility', Chart.VISIBILITY_PRIVATE)
         )
         try:
             #FIXME: Read base path from config
