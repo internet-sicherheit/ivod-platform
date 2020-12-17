@@ -30,7 +30,7 @@ class PlatformAPITestCase(APITestCase):
         base_path = get_chart_base_path()
         if base_path.exists():
             rmtree(path=base_path)
-        base_path.mkdir(exist_ok=True)
+        base_path.mkdir(exist_ok=True, parents=True)
 
         self.chart1 = Chart.objects.create(
             chart_name="piechart",
