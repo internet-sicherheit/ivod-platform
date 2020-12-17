@@ -80,8 +80,7 @@ class ChartSerializer(serializers.ModelSerializer):
 
         base_path = get_chart_base_path()
         base_path.mkdir(exist_ok=True)
-        #TODO: Default pive folder output suffix and path. Change when fixed.
-        modify_chart(persisted_data_path=base_path.joinpath(f"{instance.id}").joinpath(f"{instance.chart_name}_persisted.json"), output_path=base_path.joinpath(f"{instance.id}"), config_string=instance.config)
+        modify_chart(persisted_data_path=base_path.joinpath(f"{instance.id}").joinpath('persisted.json'), output_path=base_path.joinpath(f"{instance.id}"), config_string=instance.config)
 
         instance.save()
         return instance

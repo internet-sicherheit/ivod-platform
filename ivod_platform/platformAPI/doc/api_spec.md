@@ -2,6 +2,7 @@
 
 ## chart-add
 - url: charts/
+- Description: List charts or add a new chart
 - methods: [GET, POST]
 - GET:
     - Returns:
@@ -37,6 +38,7 @@
 
 ## chart-get
 - url: charts/<ID>/
+- Description: Show, alter or delete a specific chart
 - methods: [GET, PATCH, DELETE]
 - GET:
     - Returns:
@@ -71,6 +73,7 @@
         
 ## chart-shared
 - url: charts/<ID>/shared
+- Description: Show, add or remove users this chart is shared with
 - methods: [GET, PATCH, DELETE]
 - GET:
     - Returns:
@@ -108,6 +111,7 @@
         
 ## datasource-add
 - url: datasources/
+- Description: List datasources or add a new datasource
 - methods: [GET, POST]
 - GET:
     - Returns:
@@ -133,6 +137,7 @@
         
 ## datasource-get
 - url: datasources/<ID>/
+- Description: Show or delete a specific datasource
 - methods: [GET, DELETE]
 - GET:
     - Returns:
@@ -155,6 +160,7 @@
 
 ## datasource-shared
 - url: datasources/<ID>/shared
+- Description: Show, add or remove users this datasource is shared with
 - methods: [GET, PATCH, DELETE]
 - GET:
     - Returns:
@@ -189,6 +195,16 @@
     - Returns:
         - Format: JSON
         - Type: Shares
+        - Code: 200
+    
+## datasource-charttypes
+- url: datasources/<ID>/charttypes
+- Description: Show the chart types this datasource can be visualised with
+- methods: [GET]
+- GET:
+    - Returns:
+        - Format: JSON
+        - Type: [String]
         - Code: 200
         
 
