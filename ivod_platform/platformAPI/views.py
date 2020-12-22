@@ -236,7 +236,7 @@ class ShareView(generics.RetrieveUpdateDestroyAPIView):
             # Error response
             return new_groups
         obj.shared_users.add(*new_users)
-        obj.shared_users.add(*new_groups)
+        obj.shared_groups.add(*new_groups)
         return self.get(request, *args, **kwargs)
 
     def delete(self, request, *args, **kwargs):
@@ -250,7 +250,7 @@ class ShareView(generics.RetrieveUpdateDestroyAPIView):
             # Error response
             return new_groups
         obj.shared_users.remove(*new_users)
-        obj.shared_users.remove(*new_groups)
+        obj.shared_groups.remove(*new_groups)
         return self.get(request, *args, **kwargs)
 
 class ChartShareView(ShareView):

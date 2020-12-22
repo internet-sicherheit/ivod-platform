@@ -89,9 +89,9 @@ class PlatformAPITestCase(APITestCase):
 
         self.chart2.shared_users.add(self.user2)
         self.chart2.shared_groups.add(self.group1)
-        self.chart2.shared_groups.add(self.group2)
         self.chart2.save()
         self.datasource1.shared_users.add(self.user2)
+        self.datasource1.shared_groups.add(self.group1)
         self.datasource1.save()
 
     def test_datasources_list_unautenticated(self):
@@ -137,11 +137,20 @@ class PlatformAPITestCase(APITestCase):
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
-    def test_chart_read_shared(self):
+    def test_chart_read_shared_to_user(self):
         # Access a chart directly by its key, with it being shared -> Success
         data = {}
         url = reverse("chart-get", kwargs={'pk':self.chart2.id})
         self.assertTrue(self.client.login(username='user2', password='00000000'))
+        response = self.client.get(url, data, format='json')
+        self.assertEquals(response.status_code, 200)
+        self.assertEquals(response.data["scope_path"], "/piechart2")
+
+    def test_chart_read_shared_to_group(self):
+        # Access a chart directly by its key, with it being shared -> Success
+        data = {}
+        url = reverse("chart-get", kwargs={'pk':self.chart2.id})
+        self.assertTrue(self.client.login(username='user4', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data["scope_path"], "/piechart2")
@@ -163,11 +172,20 @@ class PlatformAPITestCase(APITestCase):
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
-    def test_datasource_read_shared(self):
+    def test_datasource_read_shared_to_user(self):
         # Access a datasource directly by its key, with it being shared -> Success
         data = {}
         url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
         self.assertTrue(self.client.login(username='user2', password='00000000'))
+        response = self.client.get(url, data, format='json')
+        self.assertEquals(response.status_code, 200)
+        self.assertEquals(response.data["scope_path"], "/file1")
+
+    def test_datasource_read_shared_to_group(self):
+        # Access a datasource directly by its key, with it being shared -> Success
+        data = {}
+        url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
+        self.assertTrue(self.client.login(username='user4', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data["scope_path"], "/file1")
@@ -215,11 +233,19 @@ class PlatformAPITestCase(APITestCase):
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
-    def test_chart_delete_shared(self):
+    def test_chart_delete_shared_to_user(self):
         # Delete a chart directly by its key, with it being shared -> Error 403
         data = {}
         url = reverse("chart-get", kwargs={'pk': self.chart2.id})
         self.assertTrue(self.client.login(username='user2', password='00000000'))
+        response = self.client.delete(url, data, format='json')
+        self.assertEquals(response.status_code, 403)
+
+    def test_chart_delete_shared_to_group(self):
+        # Delete a chart directly by its key, with it being shared -> Error 403
+        data = {}
+        url = reverse("chart-get", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user4', password='00000000'))
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
@@ -239,11 +265,19 @@ class PlatformAPITestCase(APITestCase):
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
-    def test_chart_delete_shared(self):
+    def test_chart_delete_shared_to_user(self):
         # Delete a chart directly by its key, with it being shared -> Error 403
         data = {}
         url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
         self.assertTrue(self.client.login(username='user2', password='00000000'))
+        response = self.client.delete(url, data, format='json')
+        self.assertEquals(response.status_code, 403)
+
+    def test_chart_delete_shared_to_group(self):
+        # Delete a chart directly by its key, with it being shared -> Error 403
+        data = {}
+        url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
+        self.assertTrue(self.client.login(username='user4', password='00000000'))
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
@@ -266,11 +300,19 @@ class PlatformAPITestCase(APITestCase):
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
-    def test_chart_edit_shared(self):
+    def test_chart_edit_shared_to_user(self):
         # Modify shared chart in a legal way -> Error 403
         data = {'scope_path': '/new/scope'}
         url = reverse("chart-get", kwargs={'pk': self.chart2.id})
         self.assertTrue(self.client.login(username='user2', password='00000000'))
+        response = self.client.patch(url, data, format='json')
+        self.assertEquals(response.status_code, 403)
+
+    def test_chart_edit_shared_to_group(self):
+        # Modify shared chart in a legal way -> Error 403
+        data = {'scope_path': '/new/scope'}
+        url = reverse("chart-get", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user4', password='00000000'))
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
@@ -370,13 +412,23 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(len(data_after['users']), 2)
         self.assertTrue(self.user2.id in data_after['users'])
         self.assertTrue(self.user3.id in data_after['users'])
+        self.assertEquals(set(data_after['groups']), set(data_before.data['groups']))
 
 
-    def test_add_user_to_share_as_shared(self):
+    def test_add_user_to_share_as_shared_to_user(self):
         # As someone with the chart shared, share a chart with another user -> 403
         data = {'users': [self.user3.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
         self.assertTrue(self.client.login(username='user2', password='00000000'))
+
+        response = self.client.patch(url, data, format='json')
+        self.assertEquals(response.status_code, 403)
+
+    def test_add_user_to_share_as_shared_to_group(self):
+        # As someone with the chart shared, share a chart with another user -> 403
+        data = {'users': [self.user3.id]}
+        url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user4', password='00000000'))
 
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 403)
@@ -403,13 +455,23 @@ class PlatformAPITestCase(APITestCase):
         data_after = response.data
         self.assertEquals(response.status_code, 200)
         self.assertEquals(len(data_after['users']), 0)
+        self.assertEquals(set(data_after['groups']), set(data_before.data['groups']))
 
 
-    def test_del_shared_from_share_as_shared(self):
+    def test_del_shared_from_share_as_shared_to_user(self):
         # As someone with the chart shared, unshare a chart with another user -> 403
         data = {'users': [self.user2.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
         self.assertTrue(self.client.login(username='user2', password='00000000'))
+
+        response = self.client.delete(url, data, format='json')
+        self.assertEquals(response.status_code, 403)
+
+    def test_del_shared_from_share_as_shared_to_group(self):
+        # As someone with the chart shared, unshare a chart with another user -> 403
+        data = {'users': [self.user2.id]}
+        url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user4', password='00000000'))
 
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 403)
@@ -437,6 +499,7 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(response.status_code, 200)
         self.assertEquals(len(data_after['users']), 1)
         self.assertEquals(data_before.data['users'], [self.user2.id])
+        self.assertEquals(set(data_after['groups']), set(data_before.data['groups']))
 
     def test_share_with_already_shared_user_from_share_as_owner(self):
         # Share a chart that was already shared -> 200, chart shared with user
@@ -452,6 +515,7 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(response.status_code, 200)
         self.assertEquals(len(data_after['users']), 1)
         self.assertEquals(data_before.data['users'], [self.user2.id])
+        self.assertEquals(set(data_after['groups']), set(data_before.data['groups']))
 
     def test_chart_access_after_share(self):
         # Share a chart, check if permissions changed
@@ -473,8 +537,125 @@ class PlatformAPITestCase(APITestCase):
         response = self.client.get(access_url, format='json')
         self.assertEquals(response.status_code, 200)
 
-    #TODO: When sharing, check if groups are unaffected by actions on users and vice versa
+
+    def test_add_group_to_share_as_owner(self):
+        # As the owner, share a chart with another user -> 200, new user is added
+        data = {'groups': [self.group2.id]}
+        url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user1', password='00000000'))
+
+        data_before = self.client.get(url, format='json')
+        self.assertEquals(data_before.data['groups'], [self.group1.id])
+
+        response = self.client.patch(url, data, format='json')
+        data_after = response.data
+        self.assertEquals(response.status_code, 200)
+        self.assertEquals(len(data_after['groups']), 2)
+        self.assertTrue(self.group1.id in data_after['groups'])
+        self.assertTrue(self.group2.id in data_after['groups'])
+        self.assertEquals(set(data_after['users']), set(data_before.data['users']))
+
+
+    def test_add_group_to_share_as_shared_to_user(self):
+        # As someone with the chart shared, share a chart with another group -> 403
+        data = {'groups': [self.group2.id]}
+        url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user2', password='00000000'))
+
+        response = self.client.patch(url, data, format='json')
+        self.assertEquals(response.status_code, 403)
+
+    def test_add_group_to_share_as_shared_to_group(self):
+        # As someone with the chart shared, share a chart with another group -> 403
+        data = {'groups': [self.group2.id]}
+        url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user4', password='00000000'))
+
+        response = self.client.patch(url, data, format='json')
+        self.assertEquals(response.status_code, 403)
+
+    def test_add_group_to_share_authenticated_only(self):
+        # As someone with the chart NOT shared, share a chart with another group -> 403
+        data = {'groups': [self.group2.id]}
+        url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user3', password='00000000'))
+
+        response = self.client.patch(url, data, format='json')
+        self.assertEquals(response.status_code, 403)
+
+    def test_del_shared_group_from_share_as_owner(self):
+        # As the owner, unshare a chart with another group -> 200, group is not in shares anymore
+        data = {'groups': [self.group1.id]}
+        url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user1', password='00000000'))
+
+        data_before = self.client.get(url, format='json')
+        self.assertEquals(data_before.data['groups'], [self.group1.id])
+
+        response = self.client.delete(url, data, format='json')
+        data_after = response.data
+        self.assertEquals(response.status_code, 200)
+        self.assertEquals(len(data_after['groups']), 0)
+        self.assertEquals(set(data_after['users']), set(data_before.data['users']))
+
+
+    def test_del_shared_group_from_share_as_shared_to_user(self):
+        # As someone with the chart shared, unshare a chart with another group -> 403
+        data = {'groups': [self.group2.id]}
+        url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user2', password='00000000'))
+
+        response = self.client.delete(url, data, format='json')
+        self.assertEquals(response.status_code, 403)
+
+    def test_del_shared_group_from_share_as_shared_to_group(self):
+        # As someone with the chart shared, unshare a chart with another group -> 403
+        data = {'groups': [self.group2.id]}
+        url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user4', password='00000000'))
+
+        response = self.client.delete(url, data, format='json')
+        self.assertEquals(response.status_code, 403)
+
+    def test_del_shared_group_from_share_authenticated_only(self):
+        # As someone with the chart NOT shared, unshare a chart with another group -> 403
+        data = {'groups': [self.group2.id]}
+        url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user3', password='00000000'))
+
+        response = self.client.delete(url, data, format='json')
+        self.assertEquals(response.status_code, 403)
+
+    def test_del_not_shared_group_user_from_share_as_owner(self):
+        # Unshare a chart that wasnt actually shared -> 200, chart still not shared with user
+        data = {'groups': [self.group2.id]}
+        url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user1', password='00000000'))
+
+        data_before = self.client.get(url, format='json')
+        self.assertEquals(data_before.data['groups'], [self.group1.id])
+
+        response = self.client.delete(url, data, format='json')
+        data_after = response.data
+        self.assertEquals(response.status_code, 200)
+        self.assertEquals(len(data_after['groups']), 1)
+        self.assertEquals(data_before.data['groups'], [self.group1.id])
+        self.assertEquals(set(data_after['users']), set(data_before.data['users']))
+
+    def test_share_with_already_shared_group_from_share_as_owner(self):
+        # Share a chart that was already shared -> 200, chart shared with group
+        data = {'groups': [self.group1.id]}
+        url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user1', password='00000000'))
+
+        data_before = self.client.get(url, format='json')
+        self.assertEquals(data_before.data['groups'], [self.group1.id])
+
+        response = self.client.patch(url, data, format='json')
+        data_after = response.data
+        self.assertEquals(response.status_code, 200)
+        self.assertEquals(len(data_after['groups']), 1)
+        self.assertEquals(data_before.data['groups'], [self.group1.id])
+        self.assertEquals(set(data_after['users']), set(data_before.data['users']))
 
     #TODO: Check responses for values that should not be visible for all users to confirm correct filtering on serializer level
-
-    #TODO: Differentiate between direct-share and group share
