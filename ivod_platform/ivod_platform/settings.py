@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,7 +26,11 @@ SECRET_KEY = 'vun4)1bt#652-+pnn)0ox))sv9wtf&2qy@!5$ysa6p25v*v)s-'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+if 'ALLOWED_HOSTS' in os.environ:
+    ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS').split(',')
+else:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+
 
 
 # Application definition
@@ -37,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'platformAPI',
     'platformFrontend',
     'rest_framework',
@@ -126,3 +132,7 @@ STATIC_URL = '/static/'
 DATASET_BASE_URL = "./"
 CHART_BASE_PATH = str(Path(__file__).resolve().parent.parent.joinpath("chart_data"))
 DATASOURCE_BASE_PATH = str(Path(__file__).resolve().parent.parent.joinpath("datasources"))
+
+#CORS Config
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost').split(',')
