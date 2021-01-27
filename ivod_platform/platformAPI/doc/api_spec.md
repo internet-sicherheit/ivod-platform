@@ -37,7 +37,7 @@
         - Code: 201
 
 ## chart-get
-- url: charts/<ID>/
+- url: charts/\<ID\>/
 - Description: Show, alter or delete a specific chart
 - methods: [GET, PATCH, DELETE]
 - GET:
@@ -70,9 +70,19 @@
 - DELETE:
     - Returns:
         - Code: 204
+    
+## chart-data
+- url: charts/\<ID\>/data
+- Description: Get processed data for displaying
+- methods: [GET]
+- GET:
+    - Returns:
+        - Format: JSON
+        - Type: String
+        - Code: 200
         
 ## chart-shared
-- url: charts/<ID>/shared
+- url: charts/\<ID\>/shared
 - Description: Show, add or remove users this chart is shared with
 - methods: [GET, PATCH, DELETE]
 - GET:
@@ -136,7 +146,7 @@
         - Code: 201
         
 ## datasource-get
-- url: datasources/<ID>/
+- url: datasources/\<ID\>/
 - Description: Show or delete a specific datasource
 - methods: [GET, DELETE]
 - GET:
@@ -159,7 +169,7 @@
         - Code: 204
 
 ## datasource-shared
-- url: datasources/<ID>/shared
+- url: datasources/\<ID\>/shared
 - Description: Show, add or remove users this datasource is shared with
 - methods: [GET, PATCH, DELETE]
 - GET:
@@ -198,7 +208,7 @@
         - Code: 200
     
 ## datasource-charttypes
-- url: datasources/<ID>/charttypes
+- url: datasources/\<ID\>/charttypes
 - Description: Show the chart types this datasource can be visualised with
 - methods: [GET]
 - GET:

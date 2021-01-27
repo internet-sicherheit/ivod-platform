@@ -164,7 +164,7 @@ class ChartRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
         return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def patch(self, request, *args, **kwargs):
-        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        obj = self.get_object()
         if type(obj) != Chart:
             return obj
         #Only owner can modify
@@ -187,6 +187,26 @@ class ChartRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
 
         current_object.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class ChartDataView(generics.RetrieveAPIView):
+    permission_classes = [IsChartOwner | ChartIsShared & ChartIsSharedWithUser | ChartIsSemiPublic]
+    serializer_class = serializers.Serializer
+    queryset = Chart.objects.all()
+
+    def get_object(self):
+        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def get(self, request, *args, **kwargs):
+        obj = self.get_object()
+        try:
+            with get_chart_base_path().joinpath(str(obj.id)).joinpath('data.json').open('r') as data_file:
+                return Response(data_file.read())
+        except Exception as e:
+            print(e, file=sys.stderr)
+            return Response("Error retrieving data", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class ShareView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = serializers.Serializer

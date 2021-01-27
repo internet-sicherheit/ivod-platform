@@ -5,6 +5,7 @@ from pathlib import Path
 from shutil import rmtree
 from .util import generate_chart, get_chart_base_path, get_datasource_base_path
 from base64 import b64encode
+from json import loads, load
 # Create your tests here.
 
 
@@ -163,6 +164,50 @@ class PlatformAPITestCase(APITestCase):
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data["scope_path"], "/piechart2")
+
+    def test_chart_data_read_not_shared_not_owned(self):
+        # Access a chart directly by its key, without access rights -> Error 403
+        data = {}
+        url = reverse("chart-data", kwargs={'pk': self.chart1.id})
+        self.assertTrue(self.client.login(username='user3', password='00000000'))
+        response = self.client.get(url, data, format='json')
+        self.assertEquals(response.status_code, 403)
+
+    def test_chart_data_read_shared_to_user(self):
+        # Access a chart directly by its key, with it being shared -> Success
+        data = {}
+        url = reverse("chart-data", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user2', password='00000000'))
+        response = self.client.get(url, data, format='json')
+        self.assertEquals(response.status_code, 200)
+        with get_chart_base_path().joinpath(str(self.chart2.id)).joinpath('data.json').open('r') as data_file:
+            self.assertEquals(loads(response.data), load(data_file))
+        self.assertNotEqual(response.data, "")
+        self.assertNotEqual(response.data, "{}")
+
+    def test_chart_data_read_shared_to_group(self):
+        # Access a chart directly by its key, with it being shared -> Success
+        data = {}
+        url = reverse("chart-data", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user4', password='00000000'))
+        response = self.client.get(url, data, format='json')
+        self.assertEquals(response.status_code, 200)
+        with get_chart_base_path().joinpath(str(self.chart2.id)).joinpath('data.json').open('r') as data_file:
+            self.assertEquals(loads(response.data), load(data_file))
+        self.assertNotEqual(response.data, "")
+        self.assertNotEqual(response.data, "{}")
+
+    def test_chart_data_read_owned(self):
+        # Access a chart directly by its key, with it being owned -> Success
+        data = {}
+        url = reverse("chart-data", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        response = self.client.get(url, data, format='json')
+        self.assertEquals(response.status_code, 200)
+        with get_chart_base_path().joinpath(str(self.chart2.id)).joinpath('data.json').open('r') as data_file:
+            self.assertEquals(loads(response.data), load(data_file))
+        self.assertNotEqual(response.data, "")
+        self.assertNotEqual(response.data, "{}")
 
     def test_datasource_read_not_shared_not_owned(self):
         # Access a datasource directly by its key, without access rights -> Error 403
