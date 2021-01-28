@@ -1,5 +1,5 @@
-from django.shortcuts import render, get_object_or_404
-from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseForbidden
+from django.shortcuts import render, get_object_or_404, reverse
+from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseForbidden, FileResponse
 from django.contrib.auth.models import User, Group
 from .models import EnhancedUser, EnhancedGroup, Datasource, Chart
 from rest_framework import generics
@@ -10,6 +10,7 @@ from .tests import PlatformAPITestCase
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import permissions
+from json import load
 
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -206,6 +207,39 @@ class ChartDataView(generics.RetrieveAPIView):
         except Exception as e:
             print(e, file=sys.stderr)
             return Response("Error retrieving data", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class ChartCodeView(generics.RetrieveAPIView):
+    permission_classes = [IsChartOwner | ChartIsShared & ChartIsSharedWithUser | ChartIsSemiPublic]
+    serializer_class = serializers.Serializer
+    queryset = Chart.objects.all()
+
+    def get_object(self):
+        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def get(self, request, *args, **kwargs):
+        obj = self.get_object()
+        try:
+            with get_chart_base_path().joinpath(str(obj.id)).joinpath('config.json').open('r') as file:
+                config = load(file)
+                version = config['version']
+            with get_chart_base_path().joinpath(str(obj.id)).joinpath('persisted.json').open('r') as file:
+                config = load(file)
+                name = config['chart_name'].lower() + ".js"
+                #FIXME: Get Version from persisted file too, config is user writable, this is a security risk
+                target = reverse("code-get", kwargs={'version': version, 'name': name})
+            return HttpResponseRedirect(redirect_to=target)
+        except Exception as e:
+            print(e, file=sys.stderr)
+            return Response("Error retrieving code", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+def get_code(request: HttpRequest, version, name) -> HttpResponse:
+    filepath = Path(get_code_base_path()).resolve().joinpath(version).joinpath(name)
+    if filepath.exists():
+        return FileResponse(filepath.open("rb"))
+    else:
+        return Response(status=status.HTTP_404_NOT_FOUND)
 
 
 class ShareView(generics.RetrieveUpdateDestroyAPIView):

@@ -59,3 +59,13 @@ def get_chart_base_path():
             return Path("/tmp/ivod-platform-test/charts")
     else:
         return Path(getattr(settings, "CHART_BASE_PATH", Path(__file__).resolve().parent.parent.joinpath("chart_data")))
+
+def get_code_base_path():
+    TESTING = 'test' in sys.argv
+    if TESTING:
+        if os.name == 'nt':
+            return Path(os.environ["TEMP"]).joinpath("ivod-platform-test")
+        else:
+            return Path("/tmp/ivod-platform-test/code")
+    else:
+        return Path(getattr(settings, "CODE_BASE_PATH", Path(__file__).resolve().parent.parent.joinpath("code")))
