@@ -1,7 +1,7 @@
 # Endpoints
 
 ## chart-add
-- url: charts/
+- url: charts
 - Description: List charts or add a new chart
 - methods: [GET, POST]
 - GET:
@@ -37,7 +37,7 @@
         - Code: 201
 
 ## chart-get
-- url: charts/\<ID\>/
+- url: charts/\<ID\>
 - Description: Show, alter or delete a specific chart
 - methods: [GET, PATCH, DELETE]
 - GET:
@@ -80,6 +80,25 @@
         - Format: JSON
         - Type: String
         - Code: 200
+    
+## chart-code
+- url: charts/\<ID\>/code
+- Description: Redirects to the javascript code associated with this chart. See **code-get**
+- methods: [GET]
+- GET:
+    - Returns:
+        - Code: 302
+    
+## code-get
+- url: code/\<version\>/\<name\>
+- Description: Returns the javascript to visualise a chart. **chart-code** redirects here.
+  Normally this does not need to be called manually
+- methods: [GET]
+- GET:
+    - Returns:
+        - Format: Javascript
+        - Type: String
+        - Code: 200
         
 ## chart-shared
 - url: charts/\<ID\>/shared
@@ -120,7 +139,7 @@
         - Code: 200
         
 ## datasource-add
-- url: datasources/
+- url: datasources
 - Description: List datasources or add a new datasource
 - methods: [GET, POST]
 - GET:
@@ -146,7 +165,7 @@
         - Code: 201
         
 ## datasource-get
-- url: datasources/\<ID\>/
+- url: datasources/\<ID\>
 - Description: Show or delete a specific datasource
 - methods: [GET, DELETE]
 - GET:
