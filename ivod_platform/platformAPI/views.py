@@ -10,7 +10,7 @@ from .tests import PlatformAPITestCase
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import permissions
-from json import load
+from json import load, loads, dumps
 
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -208,6 +208,25 @@ class ChartDataView(generics.RetrieveAPIView):
             print(e, file=sys.stderr)
             return Response("Error retrieving data", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class ChartConfigView(generics.RetrieveAPIView):
+    permission_classes = [IsChartOwner | ChartIsShared & ChartIsSharedWithUser | ChartIsSemiPublic]
+    serializer_class = serializers.Serializer
+    queryset = Chart.objects.all()
+
+    def get_object(self):
+        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def get(self, request, *args, **kwargs):
+        obj = self.get_object()
+        try:
+            config = get_config_for_chart(obj)
+            return Response(config)
+        except Exception as e:
+            print(e, file=sys.stderr)
+            return Response("Error retrieving data", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class ChartCodeView(generics.RetrieveAPIView):
     permission_classes = [IsChartOwner | ChartIsShared & ChartIsSharedWithUser | ChartIsSemiPublic]
     serializer_class = serializers.Serializer
@@ -221,13 +240,15 @@ class ChartCodeView(generics.RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         obj = self.get_object()
         try:
-            with get_chart_base_path().joinpath(str(obj.id)).joinpath('config.json').open('r') as file:
-                config = load(file)
-                version = config['version']
+            config = get_config_for_chart(obj)
+            version = config['version']
+            # Whitelist check of version, to avoid XSS
+            whitelist = (str(path.name) for path in Path(get_code_base_path()).resolve().iterdir() if path.is_dir())
+            if version not in whitelist:
+                return Response("Version of this chart is not supported", status=status.HTTP_409_CONFLICT)
             with get_chart_base_path().joinpath(str(obj.id)).joinpath('persisted.json').open('r') as file:
                 config = load(file)
                 name = config['chart_name'].lower() + ".js"
-                #FIXME: Get Version from persisted file too, config is user writable, this is a security risk
                 target = reverse("code-get", kwargs={'version': version, 'name': name})
             return HttpResponseRedirect(redirect_to=target)
         except Exception as e:

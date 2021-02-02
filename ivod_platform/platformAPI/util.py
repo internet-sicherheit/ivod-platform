@@ -68,4 +68,11 @@ def get_code_base_path():
         else:
             return Path("/tmp/ivod-platform-test/code")
     else:
-        return Path(getattr(settings, "CODE_BASE_PATH", Path(__file__).resolve().parent.parent.joinpath("code")))
+        return Path(getattr(settings, "JS_BASE_PATH", Path(__file__).resolve().parent.parent.joinpath("code")))
+
+def get_config_for_chart(chart):
+    """Get the complete config object for a chart. This takes the base config and updates it with the config saved in the chart object"""
+    with get_chart_base_path().joinpath(str(chart.id)).joinpath('config.json').open('r') as file:
+        config = json.load(file)
+        config.update(json.loads(chart.config))
+        return config
