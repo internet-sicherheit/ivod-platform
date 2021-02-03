@@ -6,6 +6,7 @@ from shutil import rmtree
 from .util import generate_chart, get_chart_base_path, get_datasource_base_path
 from base64 import b64encode
 from json import loads, load
+from django.conf import settings
 # Create your tests here.
 
 
@@ -50,7 +51,7 @@ class PlatformAPITestCase(APITestCase):
 
     def setUp(self):
         #TODO: Actually generate datasources and charts with the API endpoints
-        self.admin = User.objects.create_superuser(username="admin", email=None, password="00000000")
+        self.admin = User.objects.create_superuser(username="admin", email=None, password=getattr(settings, "ADMIN_PASS"))
         self.user1 = User.objects.create_user(username="user1", email=None, password="00000000")
         self.user2 = User.objects.create_user(username="user2", email=None, password="00000000")
         #Use user3 for a authenticated, but otherwise no permissions

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.generics import ListCreateAPIView, RetrieveAPIView
-from ivod_platform.settings import DEBUG
+from django.conf import settings
 from .views import debug_reset_database
 from .views import helloworld
 from .models import Chart
@@ -23,6 +23,6 @@ urlpatterns = [
     path('datasources/<pk>/shared', DatasourceShareView.as_view(), name='datasource-shared'),
     path('datasources/<pk>/charttypes', ChartTypeView.as_view(), name='datasource-charttypes')
 ]
-if DEBUG:
+if getattr(settings, "DEBUG", False):
     urlpatterns.append(path("debug_reset_database", debug_reset_database))
     urlpatterns.append(path("helloworld", helloworld))

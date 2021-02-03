@@ -11,9 +11,14 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 
 from pathlib import Path
+from random import getrandbits
+from base64 import b64encode
 import os
+from sys import stderr
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -21,11 +26,31 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'vun4)1bt#652-+pnn)0ox))sv9wtf&2qy@!5$ysa6p25v*v)s-'
+DEBUG = (os.environ.get('DEBUG', 'False').upper() == 'TRUE')
+
+SECRET_KEY = os.environ.get('SECRET_KEY')
+ADMIN_PASS = os.environ.get('ADMIN_PASS')
+
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'NOT_SAFE_FOR_PRODUCTION'
+        print(f'----------------\nWARNING: No secret key set.\nTHIS WILL FAIL WITHOUT DEBUG!\nSecret key defaulted to {SECRET_KEY}\n----------------', file=stderr)
+    else:
+        raise ValueError("No secret key set. Use environment variable SECRET_KEY!")
+
+if not ADMIN_PASS:
+    if DEBUG:
+        ADMIN_PASS = 'NOT_SAFE_FOR_PRODUCTION'
+        print(
+            f'----------------\nWARNING: No admin password set.\nTHIS WILL FAIL WITHOUT DEBUG!\nAdmin password defaulted to {SECRET_KEY}\n----------------',
+            file=stderr)
+    else:
+        raise ValueError("No admin password set. Use environment variable ADMIN_PASS!")
+
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
-#DEBUG = False
-DEBUG = True
+
 
 if 'ALLOWED_HOSTS' in os.environ:
     ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS').split(',')
