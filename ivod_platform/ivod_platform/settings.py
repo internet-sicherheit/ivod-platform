@@ -164,6 +164,7 @@ DATASET_BASE_URL = "./"
 CHART_BASE_PATH = str(BASE_DIR.joinpath("chart_data"))
 DATASOURCE_BASE_PATH = str(BASE_DIR.joinpath("datasources"))
 JS_BASE_PATH = str(BASE_DIR.joinpath("code"))
+#CHART_TEMPLATE = "/Path/To/Template/File"
 
 
 #CORS Config

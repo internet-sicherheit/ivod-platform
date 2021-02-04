@@ -65,7 +65,7 @@ class ChartSerializer(serializers.ModelSerializer):
             #FIXME: Read base path from config
             base_path = get_chart_base_path()
             base_path.mkdir(exist_ok=True)
-            generate_chart(datasource=validated_data["datasource"], chart_id=chart.id, chart_type=validated_data["chart_name"], output_path=base_path.joinpath(f"{chart.id}"), config=validated_data["config"])
+            generate_chart(datasource=validated_data["datasource"], chart_id=chart.id, chart_type=validated_data["chart_name"], output_path=base_path.joinpath(f"{chart.id}"), request=self.context['request'], config=validated_data["config"])
         except Exception as e:
             # Remove stale db entry and reraise exception
             chart.delete()
@@ -80,7 +80,7 @@ class ChartSerializer(serializers.ModelSerializer):
 
         base_path = get_chart_base_path()
         base_path.mkdir(exist_ok=True)
-        modify_chart(persisted_data_path=base_path.joinpath(f"{instance.id}").joinpath('persisted.json'), output_path=base_path.joinpath(f"{instance.id}"), config_string=instance.config)
+        modify_chart(chart_id=instance.id, output_path=base_path.joinpath(f"{instance.id}"), request=self.context['request'], config=instance.config)
 
         instance.save()
         return instance

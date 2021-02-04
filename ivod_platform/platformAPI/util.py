@@ -1,3 +1,4 @@
+from django.urls import reverse
 from pive import environment, inputmanager, outputmanager
 from pathlib import Path
 import json
@@ -11,33 +12,35 @@ def get_chart_types_for_datasource(datasource):
     supported = env.load(datasource.source)
     return supported
 
-def generate_chart(datasource, chart_id, chart_type, output_path, config=None):
+def render_chart(chart, chart_id, environment, request, config=None):
+    #TODO: Order od operation correct? Should config overwrite html template path?
+    if config:
+        chart.load_from_dict(json.loads(config))
+    chart.set_html_template(Path(getattr(settings, "CHART_TEMPLATE", Path(__file__).resolve().parent.joinpath("res").joinpath("default_template.html"))))
+    dataset_url = request.build_absolute_uri(reverse("chart-data", kwargs={'pk': chart_id}))
+    chart.set_dataset_url(dataset_url)
+    config_url = request.build_absolute_uri(reverse("chart-config", kwargs={'pk': chart_id}))
+    code_src = request.build_absolute_uri(reverse("chart-code", kwargs={'pk': chart_id}))
+    _ = environment.render(chart, template_variables={'t_config_url': config_url, 't_code_src': code_src}, filenames={'chart.js': None})
+    _ = environment.render_code(chart)
+
+def generate_chart(datasource, chart_id, chart_type, output_path, request, config=None):
     manager = inputmanager.InputManager(mergedata=False)
     env = environment.Environment(inputmanager=manager, outputmanager=outputmanager.FolderOutputManager(output_path))
     supported = env.load(datasource.source)
     if chart_type not in supported:
         raise Exception("Chart type unsupported")
     chart = env.choose(chart_type)
-    if config:
-        chart.load_from_dict(json.loads(config))
-    dataset_base_url = getattr(settings, "DATASET_BASE_URL", "./")
-    #Append leading slash
-    if dataset_base_url[-1] != '/':
-        dataset_base_url += '/'
-    #TODO: Change format of dataset url to omit chart type
-    chart.set_dataset_url(f"{dataset_base_url}{chart_id}/{chart_type}.json")
-    _ = env.render(chart, filenames={'chart.js': None})
-    _ = env.render_code(chart)
+    render_chart(chart, chart_id, env, request, config)
 
-def modify_chart(persisted_data_path, output_path, config_string):
+def modify_chart(chart_id, output_path, request, config=None):
+    persisted_data_path = get_chart_base_path().joinpath(str(chart_id)).joinpath("persisted.json")
     with Path(persisted_data_path).open("r") as persisted_data_file:
         persisted_data = json.load(persisted_data_file)
     manager = inputmanager.InputManager(mergedata=False)
     env = environment.Environment(inputmanager=manager, outputmanager=outputmanager.FolderOutputManager(output_path))
     chart = env.load_raw(persisted_data)
-    chart.load_from_dict(json.loads(config_string))
-    _ = env.render(chart, filenames={'chart.js': None})
-    _ = env.render_code(chart)
+    render_chart(chart, chart_id, env, request, config)
 
 def get_datasource_base_path():
     TESTING = 'test' in sys.argv
