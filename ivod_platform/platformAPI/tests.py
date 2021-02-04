@@ -182,9 +182,9 @@ class PlatformAPITestCase(APITestCase):
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         with get_chart_base_path().joinpath(str(self.chart2.id)).joinpath('data.json').open('r') as data_file:
-            self.assertEquals(loads(response.data), load(data_file))
-        self.assertNotEqual(response.data, "")
-        self.assertNotEqual(response.data, "{}")
+            self.assertEquals(loads(response.content.decode('utf-8')), load(data_file))
+        self.assertNotEqual(response.content.decode('utf-8'), "")
+        self.assertNotEqual(response.content.decode('utf-8'), "{}")
 
     def test_chart_data_read_shared_to_group(self):
         # Access a chart directly by its key, with it being shared -> Success
@@ -194,9 +194,9 @@ class PlatformAPITestCase(APITestCase):
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         with get_chart_base_path().joinpath(str(self.chart2.id)).joinpath('data.json').open('r') as data_file:
-            self.assertEquals(loads(response.data), load(data_file))
-        self.assertNotEqual(response.data, "")
-        self.assertNotEqual(response.data, "{}")
+            self.assertEquals(loads(response.content.decode('utf-8')), load(data_file))
+        self.assertNotEqual(response.content.decode('utf-8'), "")
+        self.assertNotEqual(response.content.decode('utf-8'), "{}")
 
     def test_chart_data_read_owned(self):
         # Access a chart directly by its key, with it being owned -> Success
@@ -206,9 +206,9 @@ class PlatformAPITestCase(APITestCase):
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         with get_chart_base_path().joinpath(str(self.chart2.id)).joinpath('data.json').open('r') as data_file:
-            self.assertEquals(loads(response.data), load(data_file))
-        self.assertNotEqual(response.data, "")
-        self.assertNotEqual(response.data, "{}")
+            self.assertEquals(loads(response.content.decode('utf-8')), load(data_file))
+        self.assertNotEqual(response.content.decode('utf-8'), "")
+        self.assertNotEqual(response.content.decode('utf-8'), "{}")
 
     def test_datasource_read_not_shared_not_owned(self):
         # Access a datasource directly by its key, without access rights -> Error 403
