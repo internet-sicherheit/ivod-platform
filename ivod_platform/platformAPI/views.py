@@ -202,8 +202,8 @@ class ChartDataView(generics.RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         obj = self.get_object()
         try:
-            with get_chart_base_path().joinpath(str(obj.id)).joinpath('data.json').open('r') as data_file:
-                return Response(data_file.read())
+            with get_chart_base_path().joinpath(str(obj.id)).joinpath('data.json').open('rb') as data_file:
+                return HttpResponse(data_file.read())
         except Exception as e:
             print(e, file=sys.stderr)
             return Response("Error retrieving data", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
