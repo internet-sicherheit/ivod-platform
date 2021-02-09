@@ -374,13 +374,6 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data['scope_path'], '/new/scope')
 
-        data = {'config': '{\"info\": \"new config\"}'}
-        response = self.client.patch(url, data, format='json')
-        self.assertEquals(response.status_code, 200)
-        response = self.client.get(url, data, format='json')
-        self.assertEquals(response.status_code, 200)
-        self.assertEquals(response.data['config'], '{\"info\": \"new config\"}')
-
         data = {'downloadable': False}
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 200)

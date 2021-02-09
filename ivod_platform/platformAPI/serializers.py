@@ -57,12 +57,10 @@ class ChartSerializer(serializers.ModelSerializer):
             scope_path=validated_data['scope_path'],
             owner=user,
             original_datasource=validated_data['datasource'],
-            config=validated_data['config'],
             downloadable=validated_data.get('downloadable',False),
             visibility=validated_data.get('visibility', Chart.VISIBILITY_PRIVATE)
         )
         try:
-            #FIXME: Read base path from config
             base_path = get_chart_base_path()
             base_path.mkdir(exist_ok=True)
             generate_chart(datasource=validated_data["datasource"], chart_id=chart.id, chart_type=validated_data["chart_name"], output_path=base_path.joinpath(f"{chart.id}"), request=self.context['request'], config=validated_data["config"])
@@ -74,13 +72,12 @@ class ChartSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         instance.scope_path = validated_data.get('scope_path', instance.scope_path)
-        instance.config = validated_data.get('config', instance.config)
         instance.downloadable = validated_data.get('downloadable', instance.downloadable)
         instance.visibility = validated_data.get('visibility', instance.visibility)
 
         base_path = get_chart_base_path()
         base_path.mkdir(exist_ok=True)
-        modify_chart(chart_id=instance.id, output_path=base_path.joinpath(f"{instance.id}"), request=self.context['request'], config=instance.config)
+        modify_chart(chart_id=instance.id, output_path=base_path.joinpath(f"{instance.id}"), request=self.context['request'], config=validated_data.get('config',None))
 
         instance.save()
         return instance
