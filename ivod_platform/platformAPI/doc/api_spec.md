@@ -89,6 +89,27 @@
     - Returns:
         - Code: 302
     
+## chart-config
+- url: charts/\<ID\>/config
+- Description: Get config file for this chart
+- methods: [GET]
+- GET:
+    - Returns:
+        - Format: JSON
+        - Type: String
+        - Code: 200
+    
+## chart-files
+- url: charts/\<ID\>/files/<filename>
+- Description: Get a file associated with this chart.  
+  This allows pive visualisations to add more files. Uses a whitelist for filenames.
+- methods: [GET]
+- GET:
+    - Returns:
+        - Format: JSON
+        - Type: octet-stream
+        - Code: 200
+    
 ## code-get
 - url: code/\<version\>/\<name\>
 - Description: Returns the javascript to visualise a chart. **chart-code** redirects here.
@@ -97,7 +118,7 @@
 - GET:
     - Returns:
         - Format: Javascript
-        - Type: String
+        - Type: octet-stream
         - Code: 200
         
 ## chart-shared

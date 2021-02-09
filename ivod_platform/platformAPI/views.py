@@ -255,6 +255,34 @@ class ChartCodeView(generics.RetrieveAPIView):
             print(e, file=sys.stderr)
             return Response("Error retrieving code", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class ChartFileView(generics.RetrieveAPIView):
+    permission_classes = [IsChartOwner | ChartIsShared & ChartIsSharedWithUser | ChartIsSemiPublic]
+    serializer_class = serializers.Serializer
+    queryset = Chart.objects.all()
+
+    # Add possible new files here
+    # 'data.json' omitted on purpose, allows to limit data download separately later on with the chart-data endpoint
+    # TODO: Get whitelist from config
+    whitelist = ['config.json', 'site.html', 'shape.json']
+
+    def get_object(self):
+        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def get(self, request, *args, **kwargs):
+        obj = self.get_object()
+        filepath = get_chart_base_path().joinpath(str(obj.id)).joinpath(self.kwargs["filename"])
+        if filepath.name not in self.__class__.whitelist or not filepath.exists():
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            with filepath.open('rb') as data_file:
+                return HttpResponse(data_file.read())
+        except Exception as e:
+            print(e, file=sys.stderr)
+            return Response("Error retrieving data", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 def get_code(request: HttpRequest, version, name) -> HttpResponse:
     filepath = Path(get_code_base_path()).resolve().joinpath(version).joinpath(name)
     if filepath.exists():
