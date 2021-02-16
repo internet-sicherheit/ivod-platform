@@ -33,6 +33,8 @@ class ChartSerializer(serializers.ModelSerializer):
         return unvalidated_data
 
     def validate_create(self, data):
+        """Validation step required on creation only."""
+
         if 'datasource' not in data:
             raise serializers.ValidationError("Datasource is required for chart creation")
         if 'chart_name' not in data:
@@ -61,9 +63,7 @@ class ChartSerializer(serializers.ModelSerializer):
             visibility=validated_data.get('visibility', Chart.VISIBILITY_PRIVATE)
         )
         try:
-            base_path = get_chart_base_path()
-            base_path.mkdir(exist_ok=True)
-            generate_chart(datasource=validated_data["datasource"], chart_id=chart.id, chart_type=validated_data["chart_name"], output_path=base_path.joinpath(f"{chart.id}"), request=self.context['request'], config=validated_data["config"])
+            generate_chart(datasource=validated_data["datasource"], chart_id=chart.id, chart_type=validated_data["chart_name"], request=self.context['request'], config=validated_data["config"])
         except Exception as e:
             # Remove stale db entry and reraise exception
             chart.delete()
@@ -77,7 +77,7 @@ class ChartSerializer(serializers.ModelSerializer):
 
         base_path = get_chart_base_path()
         base_path.mkdir(exist_ok=True)
-        modify_chart(chart_id=instance.id, output_path=base_path.joinpath(f"{instance.id}"), request=self.context['request'], config=validated_data.get('config',None))
+        modify_chart(chart_id=instance.id, request=self.context['request'], config=validated_data.get('config',None))
 
         instance.save()
         return instance
@@ -104,6 +104,8 @@ class DatasourceSerializer(serializers.ModelSerializer):
         return unvalidated_data
 
     def validate_create(self, data):
+        """Validation step required on creation only."""
+
         if 'scope_path' not in data:
             raise serializers.ValidationError("No scope_path specified")
         if 'url' not in data and 'data' not in data:
