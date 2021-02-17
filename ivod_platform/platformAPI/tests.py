@@ -226,6 +226,37 @@ class PlatformAPITestCase(APITestCase):
         with get_code_base_path().joinpath(version).joinpath(name).open('rb') as code_file:
             self.assertEquals(b''.join(response.streaming_content), code_file.read())
 
+    def test_chart_config_read(self):
+        # Access a chart directly by its key, with it being owned -> Success
+        data = {}
+        url = reverse("chart-config", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        response = self.client.get(url, data, format='json', follow=True)
+        self.assertEquals(response.status_code, 200)
+
+        config = get_config_for_chart(self.chart2)
+        self.assertEquals(loads(response.content), config)
+
+    def test_chart_file_read_whitelisted(self):
+        # Access a chart directly by its key, with it being owned -> Success
+        data = {}
+        url = reverse("chart-files", kwargs={'pk': self.chart2.id, 'filename': 'config.json'})
+        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        response = self.client.get(url, data, format='json', follow=True)
+        self.assertEquals(response.status_code, 200)
+
+        config = get_config_for_chart(self.chart2)
+        self.assertEquals(loads(response.content), config)
+
+    def test_chart_file_read_not_whitelisted(self):
+        # Access a chart directly by its key, with it being owned -> Success
+        data = {}
+        url = reverse("chart-files", kwargs={'pk': self.chart2.id, 'filename': 'persisted.json'})
+        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        response = self.client.get(url, data, format='json', follow=True)
+        self.assertEquals(response.status_code, 404)
+
+
     def test_datasource_read_not_shared_not_owned(self):
         # Access a datasource directly by its key, without access rights -> Error 403
         data = {}
