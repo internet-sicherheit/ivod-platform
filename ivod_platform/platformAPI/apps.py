@@ -1,7 +1,6 @@
 from django.apps import AppConfig
 from pive.environment import Environment
-from pathlib import Path
-from django.conf import settings
+from .util import get_code_base_path
 
 class PlatformapiConfig(AppConfig):
     name = 'platformAPI'
@@ -12,7 +11,7 @@ class PlatformapiConfig(AppConfig):
         # Keep older version
         for name in visualisations:
             version = visualisations[name].get_version()
-            folder = Path(getattr(settings, "JS_BASE_PATH", Path(__file__).resolve().parent.parent.joinpath("code"))).joinpath(version)
+            folder = get_code_base_path().joinpath(version)
             folder.mkdir(exist_ok=True)
             with folder.joinpath(f"{name}.js").open("w") as outfile:
                 outfile.write(visualisations[name].get_js_code())

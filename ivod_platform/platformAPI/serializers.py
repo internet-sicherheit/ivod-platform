@@ -44,7 +44,6 @@ class ChartSerializer(serializers.ModelSerializer):
         if self.context['request'].user == None or type(self.context['request'].user) == AnonymousUser:
             raise serializers.ValidationError("Only users may create Charts")
 
-        # FIXME: Read base path from config
         supported = get_chart_types_for_datasource(data["datasource"])
         if data["chart_name"] not in supported:
             raise serializers.ValidationError(f"Chart type not supported for this datasource. Supported types are: {supported}")
@@ -65,6 +64,11 @@ class ChartSerializer(serializers.ModelSerializer):
         try:
             generate_chart(datasource=validated_data["datasource"], chart_id=chart.id, chart_type=validated_data["chart_name"], request=self.context['request'], config=validated_data["config"])
         except Exception as e:
+            # Try to erase file system artifacts
+            try:
+                get_chart_base_path().joinpath(str(chart.id)).rmdir()
+            except:
+                pass
             # Remove stale db entry and reraise exception
             chart.delete()
             raise e
@@ -75,8 +79,8 @@ class ChartSerializer(serializers.ModelSerializer):
         instance.downloadable = validated_data.get('downloadable', instance.downloadable)
         instance.visibility = validated_data.get('visibility', instance.visibility)
 
-        base_path = get_chart_base_path()
-        base_path.mkdir(exist_ok=True)
+        # TODO: Could there be a case where modification fails halfway through?
+        # Especially file access is not atomic, keep a backup and restore from that?
         modify_chart(chart_id=instance.id, request=self.context['request'], config=validated_data.get('config',None))
 
         instance.save()

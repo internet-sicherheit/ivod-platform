@@ -3,7 +3,7 @@ from django.shortcuts import reverse
 from .permissions import *
 from pathlib import Path
 from shutil import rmtree
-from .util import generate_chart, get_chart_base_path, get_datasource_base_path
+from .util import generate_chart, get_chart_base_path, get_datasource_base_path, get_code_base_path, get_config_for_chart
 from base64 import b64encode
 from json import loads, load
 from django.conf import settings
@@ -209,6 +209,22 @@ class PlatformAPITestCase(APITestCase):
             self.assertEquals(loads(response.content.decode('utf-8')), load(data_file))
         self.assertNotEqual(response.content.decode('utf-8'), "")
         self.assertNotEqual(response.content.decode('utf-8'), "{}")
+
+    def test_chart_code_read(self):
+        # Access a chart directly by its key, with it being owned -> Success
+        data = {}
+        url = reverse("chart-code", kwargs={'pk': self.chart2.id})
+        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        response = self.client.get(url, data, format='json', follow=True)
+        self.assertEquals(response.status_code, 200)
+
+        config = get_config_for_chart(self.chart2)
+        version = config['version']
+        with get_chart_base_path().joinpath(str(self.chart2.id)).joinpath('persisted.json').open('r') as file:
+            config = load(file)
+            name = config['chart_name'].lower() + ".js"
+        with get_code_base_path().joinpath(version).joinpath(name).open('rb') as code_file:
+            self.assertEquals(b''.join(response.streaming_content), code_file.read())
 
     def test_datasource_read_not_shared_not_owned(self):
         # Access a datasource directly by its key, without access rights -> Error 403
@@ -421,6 +437,22 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(response.status_code, 201)
         chart = Chart.objects.get(id=response.data['id'])
         self.assertIsNotNone(chart)
+
+    def test_create_chart_with_illegal_chart_name(self):
+        # Create a new chart with a datasource user has access too -> Chart in Database
+        data = {'config': '{}',
+                'downloadable': True,
+                'visibility': Chart.VISIBILITY_PRIVATE,
+                'scope_path': '/test/create/chart',
+                'chart_name': 'ILLEGAL',
+                'datasource': self.datasource1.id
+                }
+        url = reverse("chart-add")
+        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        response = self.client.post(url, data, format='json')
+        self.assertEquals(response.status_code, 400)
+
+    # TODO: Make sure no chart artifacts remain on midway crash, but how to force midway crash?
 
     def test_create_chart_with_unaccessible_datasource(self):
         # Create a new chart with a datasource user DOES NOT have access too -> Error 403
