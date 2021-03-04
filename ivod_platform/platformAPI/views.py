@@ -123,7 +123,7 @@ class DatasourceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIVi
 
 class ChartCreateListView(generics.ListCreateAPIView):
     """Add or list existing charts, for which the caller has access rights"""
-    permission_classes = [permissions.IsAuthenticated]
+    #permission_classes = [permissions.IsAuthenticated]
     serializer_class = ChartSerializer
     queryset = Chart.objects.all()
 
@@ -133,6 +133,8 @@ class ChartCreateListView(generics.ListCreateAPIView):
         datasource = Datasource.objects.get(id=request.data['datasource'])
 
         # Only allow creation if used datasource is available to user
+        if not permissions.IsAuthenticated().has_permission(request, self):
+            return Response("Must be logged in to create charts", status=status.HTTP_403_FORBIDDEN)
         owner_permission = IsDatasourceOwner()
         shared_permission = DatasourceIsSharedWithUser()
         if not(owner_permission.has_object_permission(request, self, datasource)

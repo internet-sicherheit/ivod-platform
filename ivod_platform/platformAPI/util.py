@@ -48,7 +48,7 @@ def generate_chart(datasource, chart_id, chart_type, request, config=None):
     """
 
     base_path = get_chart_base_path()
-    base_path.mkdir(exist_ok=True)
+    base_path.mkdir(parents=True, exist_ok=True)
     output_path = base_path.joinpath(str(chart_id))
 
     manager = inputmanager.InputManager(mergedata=False)
@@ -68,7 +68,7 @@ def modify_chart(chart_id, request, config=None):
     """
 
     base_path = get_chart_base_path()
-    base_path.mkdir(exist_ok=True)
+    base_path.mkdir(parents=True, exist_ok=True)
     output_path = base_path.joinpath(str(chart_id))
 
     persisted_data_path = output_path.joinpath("persisted.json")

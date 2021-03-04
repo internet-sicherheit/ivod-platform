@@ -104,11 +104,14 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(response.status_code, 403)
 
     def test_chart_list_unautenticated(self):
-        # Access listing of charts unauthenticated -> Error 403
+        # Access listing of charts unauthenticated -> Return all charts with Public Permission
         data = {}
         url = reverse("chart-add")
         response = self.client.get(url,data, format='json')
-        self.assertEquals(response.status_code, 403)
+        self.assertEquals(response.status_code, 200)
+        # There is 1 public chart in the database
+        self.assertEquals(len(response.data), 1)
+        self.assertEquals(response.data[0]["scope_path"], "/linechart3")
 
     def test_datasource_list_authenticated(self):
         # Access listing of datasources authenticated, but with none owned or shared -> Success, but empty response
