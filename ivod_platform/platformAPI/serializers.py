@@ -14,12 +14,12 @@ class ChartSerializer(serializers.ModelSerializer):
     class Meta:
         model = Chart
         fields = '__all__'
-        read_only_fields = ['chart_name', 'id', 'owner', 'original_datasource']
+        read_only_fields = ['chart_type', 'id', 'owner', 'original_datasource']
         extra_kwargs = {
             'config': {'required': False},
             'downloadable': {'required': False},
             'visibility': {'required': False},
-            'scope_path': {'required': False},
+            'chart_name': {'required': False},
             'owner': {'required': False, 'read_only': True},
             'shared_users': {'required': False, 'write_only': True},
             'shared_groups': {'required': False, 'write_only': True}
@@ -37,15 +37,15 @@ class ChartSerializer(serializers.ModelSerializer):
 
         if 'datasource' not in data:
             raise serializers.ValidationError("Datasource is required for chart creation")
-        if 'chart_name' not in data:
+        if 'chart_type' not in data:
             raise serializers.ValidationError("Chart type must be given")
-        if 'scope_path' not in data:
-            raise serializers.ValidationError("Scope path must be given")
+        if 'chart_name' not in data:
+            raise serializers.ValidationError("Chart name must be given")
         if self.context['request'].user == None or type(self.context['request'].user) == AnonymousUser:
             raise serializers.ValidationError("Only users may create Charts")
 
         supported = get_chart_types_for_datasource(data["datasource"])
-        if data["chart_name"] not in supported:
+        if data["chart_type"] not in supported:
             raise serializers.ValidationError(f"Chart type not supported for this datasource. Supported types are: {supported}")
         return data
 
@@ -54,15 +54,15 @@ class ChartSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         # TODO: How to handle shares during creation? Ignore and keep sharing a separate action?
         chart = Chart.objects.create(
+            chart_type=validated_data['chart_type'],
             chart_name=validated_data['chart_name'],
-            scope_path=validated_data['scope_path'],
             owner=user,
             original_datasource=validated_data['datasource'],
             downloadable=validated_data.get('downloadable',False),
             visibility=validated_data.get('visibility', Chart.VISIBILITY_PRIVATE)
         )
         try:
-            generate_chart(datasource=validated_data["datasource"], chart_id=chart.id, chart_type=validated_data["chart_name"], request=self.context['request'], config=validated_data["config"])
+            generate_chart(datasource=validated_data["datasource"], chart_id=chart.id, chart_type=validated_data["chart_type"], request=self.context['request'], config=validated_data["config"])
         except Exception as e:
             # Try to erase file system artifacts
             try:
@@ -75,7 +75,7 @@ class ChartSerializer(serializers.ModelSerializer):
         return chart
 
     def update(self, instance, validated_data):
-        instance.scope_path = validated_data.get('scope_path', instance.scope_path)
+        instance.chart_name = validated_data.get('chart_name', instance.chart_name)
         instance.downloadable = validated_data.get('downloadable', instance.downloadable)
         instance.visibility = validated_data.get('visibility', instance.visibility)
 
@@ -95,7 +95,7 @@ class DatasourceSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'source': {'required': False, 'read_only': True},
             'owner': {'required': False, 'read_only': True},
-            'scope_path': {'required': False},
+            'datasource_name': {'required': False},
             'shared_users': {'required': False, 'write_only': True},
             'shared_groups': {'required': False, 'write_only': True}
         }
@@ -110,8 +110,8 @@ class DatasourceSerializer(serializers.ModelSerializer):
     def validate_create(self, data):
         """Validation step required on creation only."""
 
-        if 'scope_path' not in data:
-            raise serializers.ValidationError("No scope_path specified")
+        if 'datasource_name' not in data:
+            raise serializers.ValidationError("No datasource_name specified")
         if 'url' not in data and 'data' not in data:
             raise serializers.ValidationError("Neither data nor url specified")
         if 'url' in data and 'data' in data:
@@ -131,17 +131,17 @@ class DatasourceSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         #TODO: How to handle shares during creation? Ignore and keep sharing a separate action?
         if 'url' in validated_data:
-            datasource = Datasource.objects.create(source=validated_data['url'], scope_path=validated_data['scope_path'], owner=user)
+            datasource = Datasource.objects.create(source=validated_data['url'], datasource_name=validated_data['datasource_name'], owner=user)
         else:
             data = b64decode(validated_data['data'])
             file_path = get_datasource_base_path().joinpath(uuid4().hex)
             with file_path.open("w") as file:
                 file.write(data.decode('utf-8'))
-            datasource = Datasource.objects.create(source=file_path, scope_path=validated_data['scope_path'], owner=user)
+            datasource = Datasource.objects.create(source=file_path, datasource_name=validated_data['datasource_name'], owner=user)
         return datasource
 
     def update(self, instance, validated_data):
-        instance.scope_path = validated_data.get('scope_path', instance.scope_path)
+        instance.datasource_name = validated_data.get('datasource_name', instance.datasource_name)
         instance.save()
         return instance
 

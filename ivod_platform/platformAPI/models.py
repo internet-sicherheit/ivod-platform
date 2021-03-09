@@ -6,14 +6,14 @@ from django.dispatch import receiver
 # Create your models here.
 class Datasource(models.Model):
     source = models.URLField()
-    scope_path = models.CharField(max_length=256)
+    datasource_name = models.CharField(max_length=256)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="datasource_owner")
 
     shared_users = models.ManyToManyField(User, related_name="datasource_shared_users")
     shared_groups = models.ManyToManyField(Group, related_name="datasource_shared_groups")
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['owner','scope_path'],name='datasource_unique_user_scope_path'),
+            models.UniqueConstraint(fields=['owner','datasource_name'],name='datasource_unique_user_datasource_name'),
         ]
 
 class Chart(models.Model):
@@ -23,8 +23,8 @@ class Chart(models.Model):
     VISIBILITY_SEMI_PUBLIC = 2
     VISIBILITY_PUBLIC = 3
 
+    chart_type = models.CharField(max_length=256)
     chart_name = models.CharField(max_length=256)
-    scope_path = models.CharField(max_length=256)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="chart_owner")
     original_datasource = models.ForeignKey(Datasource, on_delete=models.SET_NULL, blank=True, null=True)
     downloadable = models.BooleanField(default=False)
@@ -35,7 +35,7 @@ class Chart(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['owner','scope_path'],name='chart_unique_user_scope_path'),
+            models.UniqueConstraint(fields=['owner','chart_name'],name='chart_unique_user_scope_path'),
         ]
 
 class EnhancedUser(models.Model):

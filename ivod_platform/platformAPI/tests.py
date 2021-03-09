@@ -17,8 +17,8 @@ class PlatformAPITestCase(APITestCase):
         SERVER_PORT = getattr(self, 'SERVER_PORT', 80)
         return (SERVER_NAME,SERVER_PORT)
 
-    def create_datasource(self, user, password, scope_path, data):
-        data = {'data': f'{b64encode(data).decode(encoding="utf-8")}', 'scope_path': scope_path}
+    def create_datasource(self, user, password, datasource_name, data):
+        data = {'data': f'{b64encode(data).decode(encoding="utf-8")}', 'datasource_name': datasource_name}
         url = reverse("datasource-add")
         self.assertTrue(self.client.login(username=user, password=password))
         (SERVER_NAME, SERVER_PORT) = self.get_server_address()
@@ -29,12 +29,12 @@ class PlatformAPITestCase(APITestCase):
         self.assertIsNotNone(datasource)
         return datasource
 
-    def create_chart(self, user, password, config, downloadable, visibility, scope_path, chart_name, datasource_id):
+    def create_chart(self, user, password, config, downloadable, visibility, chart_name, chart_type, datasource_id):
         data = {'config': config,
                 'downloadable': downloadable,
                 'visibility': visibility,
-                'scope_path': scope_path,
                 'chart_name': chart_name,
+                'chart_type': chart_type,
                 'datasource': datasource_id
                 }
         url = reverse("chart-add")
@@ -111,7 +111,7 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(response.status_code, 200)
         # There is 1 public chart in the database
         self.assertEquals(len(response.data), 1)
-        self.assertEquals(response.data[0]["scope_path"], "/linechart3")
+        self.assertEquals(response.data[0]["chart_name"], "/linechart3")
 
     def test_datasource_list_authenticated(self):
         # Access listing of datasources authenticated, but with none owned or shared -> Success, but empty response
@@ -132,7 +132,7 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(response.status_code, 200)
         #There is 1 public chart in the database
         self.assertEquals(len(response.data), 1)
-        self.assertEquals(response.data[0]["scope_path"], "/linechart3")
+        self.assertEquals(response.data[0]["chart_name"], "/linechart3")
 
     def test_chart_read_not_shared_not_owned(self):
         # Access a chart directly by its key, without access rights -> Error 403
@@ -149,7 +149,7 @@ class PlatformAPITestCase(APITestCase):
         self.assertTrue(self.client.login(username='user2', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
-        self.assertEquals(response.data["scope_path"], "/piechart2")
+        self.assertEquals(response.data["chart_name"], "/piechart2")
 
     def test_chart_read_shared_to_group(self):
         # Access a chart directly by its key, with it being shared -> Success
@@ -158,7 +158,7 @@ class PlatformAPITestCase(APITestCase):
         self.assertTrue(self.client.login(username='user4', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
-        self.assertEquals(response.data["scope_path"], "/piechart2")
+        self.assertEquals(response.data["chart_name"], "/piechart2")
 
     def test_chart_read_owned(self):
         # Access a chart directly by its key, with it being owned -> Success
@@ -167,7 +167,7 @@ class PlatformAPITestCase(APITestCase):
         self.assertTrue(self.client.login(username='user1', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
-        self.assertEquals(response.data["scope_path"], "/piechart2")
+        self.assertEquals(response.data["chart_name"], "/piechart2")
 
     def test_chart_data_read_not_shared_not_owned(self):
         # Access a chart directly by its key, without access rights -> Error 403
@@ -275,7 +275,7 @@ class PlatformAPITestCase(APITestCase):
         self.assertTrue(self.client.login(username='user2', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
-        self.assertEquals(response.data["scope_path"], "/file1")
+        self.assertEquals(response.data["datasource_name"], "/file1")
 
     def test_datasource_read_shared_to_group(self):
         # Access a datasource directly by its key, with it being shared -> Success
@@ -284,7 +284,7 @@ class PlatformAPITestCase(APITestCase):
         self.assertTrue(self.client.login(username='user4', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
-        self.assertEquals(response.data["scope_path"], "/file1")
+        self.assertEquals(response.data["datasource_name"], "/file1")
 
     def test_datasource_read_owned(self):
         # Access a datasource directly by its key, with it being owned -> Success
@@ -293,16 +293,16 @@ class PlatformAPITestCase(APITestCase):
         self.assertTrue(self.client.login(username='user1', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
-        self.assertEquals(response.data["scope_path"], "/file1")
+        self.assertEquals(response.data["datasource_name"], "/file1")
 
     def test_datasource_edit_owned(self):
         # Change scope path on an owned datasource -> 200, scope path changed
-        data = { 'scope_path': '/test/datasource/edit/owned'}
+        data = { 'datasource_name': '/test/datasource/edit/owned'}
         url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
         self.assertTrue(self.client.login(username='user1', password='00000000'))
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 200)
-        self.assertEquals(response.data["scope_path"], '/test/datasource/edit/owned')
+        self.assertEquals(response.data["datasource_name"], '/test/datasource/edit/owned')
 
     def test_datasource_edit_owned_no_change(self):
         # Dont change scope path on an owned datasource -> 200, scope path unchanged
@@ -311,7 +311,7 @@ class PlatformAPITestCase(APITestCase):
         self.assertTrue(self.client.login(username='user1', password='00000000'))
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 200)
-        self.assertEquals(response.data["scope_path"], self.datasource1.scope_path)
+        self.assertEquals(response.data["datasource_name"], self.datasource1.datasource_name)
 
     def test_datasource_edit_owned_unsupported_change(self):
         # Change not existing field on an owned datasource -> 200, field is ignored
@@ -390,7 +390,7 @@ class PlatformAPITestCase(APITestCase):
 
     def test_chart_edit_authenticated_public_only(self):
         # Modify public chart in a legal way -> Error 403
-        data = {'scope_path': '/new/scope'}
+        data = {'chart_name': '/new/scope'}
         url = reverse("chart-get", kwargs={'pk': self.chart5.id})
         self.assertTrue(self.client.login(username='user3', password='00000000'))
         response = self.client.patch(url, data, format='json')
@@ -398,7 +398,7 @@ class PlatformAPITestCase(APITestCase):
 
     def test_chart_edit_shared_to_user(self):
         # Modify shared chart in a legal way -> Error 403
-        data = {'scope_path': '/new/scope'}
+        data = {'chart_name': '/new/scope'}
         url = reverse("chart-get", kwargs={'pk': self.chart2.id})
         self.assertTrue(self.client.login(username='user2', password='00000000'))
         response = self.client.patch(url, data, format='json')
@@ -406,7 +406,7 @@ class PlatformAPITestCase(APITestCase):
 
     def test_chart_edit_shared_to_group(self):
         # Modify shared chart in a legal way -> Error 403
-        data = {'scope_path': '/new/scope'}
+        data = {'chart_name': '/new/scope'}
         url = reverse("chart-get", kwargs={'pk': self.chart2.id})
         self.assertTrue(self.client.login(username='user4', password='00000000'))
         response = self.client.patch(url, data, format='json')
@@ -417,12 +417,12 @@ class PlatformAPITestCase(APITestCase):
         url = reverse("chart-get", kwargs={'pk': self.chart1.id})
         self.assertTrue(self.client.login(username='user1', password='00000000'))
 
-        data = {'scope_path': '/new/scope'}
+        data = {'chart_name': '/new/scope'}
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
-        self.assertEquals(response.data['scope_path'], '/new/scope')
+        self.assertEquals(response.data['chart_name'], '/new/scope')
 
         data = {'downloadable': False}
         response = self.client.patch(url, data, format='json')
@@ -439,16 +439,16 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(response.data['visibility'], Chart.VISIBILITY_PUBLIC)
 
         # Modify owned chart in an illegal way -> Success, but no actual modification takes place
-        data = {'chart_name': 'SHOULD BE READ ONLY'}
+        data = {'chart_type': 'SHOULD BE READ ONLY'}
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
-        self.assertNotEqual(response.data['chart_name'], 'SHOULD BE READ ONLY')
+        self.assertNotEqual(response.data['chart_type'], 'SHOULD BE READ ONLY')
 
     def test_create_datasource(self):
         # Create a new datasource -> Datasource in Database
-        data = {'url': 'https://google.com', 'scope_path': '/test/create/datasource'}
+        data = {'url': 'https://google.com', 'datasource_name': '/test/create/datasource'}
         url = reverse("datasource-add")
         self.assertTrue(self.client.login(username='user1', password='00000000'))
         response = self.client.post(url, data, format='json')
@@ -461,8 +461,8 @@ class PlatformAPITestCase(APITestCase):
         data = {'config': '{}',
                 'downloadable': True,
                 'visibility': Chart.VISIBILITY_PRIVATE,
-                'scope_path': '/test/create/chart',
-                'chart_name': 'barchart',
+                'chart_name': '/test/create/chart',
+                'chart_type': 'barchart',
                 'datasource': self.datasource1.id
                 }
         url = reverse("chart-add")
@@ -472,13 +472,13 @@ class PlatformAPITestCase(APITestCase):
         chart = Chart.objects.get(id=response.data['id'])
         self.assertIsNotNone(chart)
 
-    def test_create_chart_with_illegal_chart_name(self):
+    def test_create_chart_with_illegal_chart_type(self):
         # Create a new chart with a datasource user has access too -> Chart in Database
         data = {'config': '{}',
                 'downloadable': True,
                 'visibility': Chart.VISIBILITY_PRIVATE,
-                'scope_path': '/test/create/chart',
-                'chart_name': 'ILLEGAL',
+                'chart_name': '/test/create/chart',
+                'chart_type': 'ILLEGAL',
                 'datasource': self.datasource1.id
                 }
         url = reverse("chart-add")
@@ -493,8 +493,8 @@ class PlatformAPITestCase(APITestCase):
         data = {'config': '{}',
                 'downloadable': True,
                 'visibility': Chart.VISIBILITY_PRIVATE,
-                'scope_path': '/test/create/chart',
-                'chart_name': 'TESTNAME',
+                'chart_name': '/test/create/chart',
+                'chart_type': 'TESTNAME',
                 'datasource': self.datasource2.id
                 }
         url = reverse("chart-add")

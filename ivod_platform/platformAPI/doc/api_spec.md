@@ -14,13 +14,13 @@
         - 'datasource':
             - Description: ID of datasource to be used for this chart
             - Type: int
-        - 'chart_name':
+        - 'chart_type':
             - Description: Name of the chart type to be used, see pive for list of allowed values
             - Type: string
         - 'config':
             - Description: Parameters for chart rendering
             - Type: JSON Object
-        - 'scope_path':
+        - 'chart_name':
             - Description: Object name for displaying/ordering elements in UI
             - Type: string
         - 'downloadable':
@@ -51,7 +51,7 @@
             - Description: Parameters for chart rendering
             - Type: JSON Object
             - Default: Prior Value
-        - 'scope_path':
+        - 'chart_name':
             - Description: Object name for displaying/ordering elements in UI
             - Type: string
             - Default: Prior Value
@@ -170,7 +170,7 @@
         - Code: 200
 - POST:
     - Parameters:
-        - 'scope_path':
+        - 'chart_name':
             - Description: Object name for displaying/ordering elements in UI
             - Type: string
         - OneOf:
@@ -196,7 +196,7 @@
         - Code: 200
 - PATCH:
     - Parameters:
-        - 'scope_path':
+        - 'chart_name':
             - Description: Object name for displaying/ordering elements in UI
             - Type: string
             - Default: Prior Value
@@ -270,7 +270,7 @@
 - 'source':
     - Description: (Original) Source of data
     - Type: URL
-- 'scope_path':
+- 'chart_name':
     - Description: Object name for displaying/ordering elements in UI
     - Type: string
 - 'owner'
@@ -281,10 +281,10 @@
 - 'id':
     - Description: Database id of chart
     - Type: int
-- 'chart_name':
+- 'chart_type':
     - Description: Name of the chart type to be used, see pive for list of allowed values
     - Type: string
-- 'scope_path':
+- 'chart_name':
     - Description: Object name for displaying/ordering elements in UI
     - Type: string
 - 'owner'
