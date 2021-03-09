@@ -1,6 +1,8 @@
 from django.shortcuts import render, get_object_or_404, reverse
 from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseForbidden, FileResponse
 from django.contrib.auth.models import User, Group
+from django_filters.rest_framework import DjangoFilterBackend
+
 from .models import EnhancedUser, EnhancedGroup, Datasource, Chart
 from rest_framework import generics
 from .serializers import *
@@ -126,6 +128,13 @@ class ChartCreateListView(generics.ListCreateAPIView):
     #permission_classes = [permissions.IsAuthenticated]
     serializer_class = ChartSerializer
     queryset = Chart.objects.all()
+    filter_backends = [DjangoFilterBackend]
+    #filterset_fields = ['creation_time', 'modification_time', 'chart_type']
+    filterset_fields = {
+        'creation_time': ['gte', 'lte'],
+        'modification_time': ['gte', 'lte'],
+        'chart_type': ['exact'],
+    }
 
     # FIXME: Upload limits?
 
@@ -147,7 +156,7 @@ class ChartCreateListView(generics.ListCreateAPIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def get(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
+        queryset = self.filter_queryset(self.get_queryset())
 
         # Only show charts owned or shared with user or that are public
         owner_permission = IsChartOwner()

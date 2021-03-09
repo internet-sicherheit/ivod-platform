@@ -10,6 +10,7 @@ setup(
     install_requires=['Django',
                       'djangorestframework',
                       'django-cors-headers',
+                      'django-filter',
                       f'pive=={HARDCODED_PIVE_VERSION}'
                       ],
     dependency_links = [

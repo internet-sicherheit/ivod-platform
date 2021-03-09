@@ -5,6 +5,22 @@
 - Description: List charts or add a new chart
 - methods: [GET, POST]
 - GET:
+    - Parameters:
+        - 'chart_type':
+            - Type: query
+            - Description: Filter for charts with this exact name
+        - 'modification_time__lte':
+            - Type: query
+            - Description: Filter for charts last modified before the passed timestamp argument
+        - 'modification_time__gte':
+            - Type: query
+            - Description: Filter for charts last modified after the passed timestamp argument
+        - 'creation_time_lte':
+            - Type: query
+            - Description: Filter for charts created before the passed timestamp argument
+        - 'creation_time__gte':
+            - Type: query
+            - Description: Filter for charts created after the passed timestamp argument    
     - Returns:
         - Format: JSON
         - Type: [Chart]
@@ -276,6 +292,12 @@
 - 'owner'
     - Description: Database id of owner
     - Type: int
+- 'creation_time'
+    - Description: Timestamp of when this datasource was created
+    - Type: string
+- 'modification_time'
+    - Description: Timestamp of when this datasource was last modified
+    - Type: string
 
 ## Chart
 - 'id':
@@ -304,6 +326,12 @@
     - Description: Determines the share level of this chart
     - Type: Enum(Private, Shared, Semi-Public, Public)
     - Default: 0
+- 'creation_time'
+    - Description: Timestamp of when this chart was created
+    - Type: string
+- 'modification_time'
+    - Description: Timestamp of when this chart was last modified
+    - Type: string
 
 ## Shares
 - 'users':
@@ -314,3 +342,6 @@
     - Description: List of group IDs this share applies to
     - Type: [int]
     - Default: []
+    
+# Notes
+If not specified, default parameter type is body-parameter
