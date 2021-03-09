@@ -6,6 +6,8 @@ from django.dispatch import receiver
 # Create your models here.
 class Datasource(models.Model):
     source = models.URLField()
+    creation_time = models.DateTimeField(auto_now_add=True)
+    modification_time = models.DateTimeField(auto_now=True)
     datasource_name = models.CharField(max_length=256)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="datasource_owner")
 
@@ -25,6 +27,8 @@ class Chart(models.Model):
 
     chart_type = models.CharField(max_length=256)
     chart_name = models.CharField(max_length=256)
+    creation_time = models.DateTimeField(auto_now_add=True)
+    modification_time = models.DateTimeField(auto_now=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="chart_owner")
     original_datasource = models.ForeignKey(Datasource, on_delete=models.SET_NULL, blank=True, null=True)
     downloadable = models.BooleanField(default=False)

@@ -14,7 +14,7 @@ class ChartSerializer(serializers.ModelSerializer):
     class Meta:
         model = Chart
         fields = '__all__'
-        read_only_fields = ['chart_type', 'id', 'owner', 'original_datasource']
+        read_only_fields = ['chart_type', 'id', 'owner', 'original_datasource', 'creation_time', 'modification_time']
         extra_kwargs = {
             'config': {'required': False},
             'downloadable': {'required': False},
@@ -92,6 +92,7 @@ class DatasourceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Datasource
         fields = '__all__'
+        read_only_fields = ['creation_time', 'modification_time']
         extra_kwargs = {
             'source': {'required': False, 'read_only': True},
             'owner': {'required': False, 'read_only': True},
