@@ -73,7 +73,7 @@ INSTALLED_APPS = [
     'platformFrontend',
     'rest_framework',
     'django_filters',
-    'djangorestframework-simplejwt',
+    'rest_framework_simplejwt',
 ]
 
 MIDDLEWARE = [
