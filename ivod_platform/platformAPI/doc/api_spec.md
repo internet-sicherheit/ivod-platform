@@ -186,7 +186,7 @@
         - Code: 200
 - POST:
     - Parameters:
-        - 'chart_name':
+        - 'datasource_name':
             - Description: Object name for displaying/ordering elements in UI
             - Type: string
         - OneOf:
@@ -212,7 +212,7 @@
         - Code: 200
 - PATCH:
     - Parameters:
-        - 'chart_name':
+        - 'datasource_name':
             - Description: Object name for displaying/ordering elements in UI
             - Type: string
             - Default: Prior Value
@@ -286,7 +286,7 @@
 - 'source':
     - Description: (Original) Source of data
     - Type: URL
-- 'chart_name':
+- 'datasource_name':
     - Description: Object name for displaying/ordering elements in UI
     - Type: string
 - 'owner'
