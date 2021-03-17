@@ -11,6 +11,7 @@ setup(
                       'djangorestframework',
                       'django-cors-headers',
                       'django-filter',
+                      'djangorestframework-simplejwt',
                       f'pive=={HARDCODED_PIVE_VERSION}'
                       ],
     dependency_links = [
