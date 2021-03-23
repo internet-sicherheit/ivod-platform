@@ -120,9 +120,9 @@ class DatasourceSerializer(serializers.ModelSerializer):
         if 'url' in data:
             #TODO: Validate URL here
             pass
-        else:
-            #TODO: Validate actual data here:
-            pass
+
+        #TODO: Validate actual data here
+
         if self.context['request'].user == None or type(self.context['request'].user) == AnonymousUser:
             raise serializers.ValidationError("Only users may create Charts")
         return data
@@ -138,6 +138,7 @@ class DatasourceSerializer(serializers.ModelSerializer):
             file_path = get_datasource_base_path().joinpath(uuid4().hex)
             with file_path.open("w") as file:
                 file.write(data.decode('utf-8'))
+            # TODO: Handle Database exceptions better (especially violated constraints)
             datasource = Datasource.objects.create(source=file_path, datasource_name=validated_data['datasource_name'], owner=user)
         return datasource
 

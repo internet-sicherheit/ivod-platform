@@ -101,7 +101,7 @@ class PlatformAPITestCase(APITestCase):
         data = {}
         url = reverse("datasource-add")
         response = self.client.get(url,data, format='json')
-        self.assertEquals(response.status_code, 403)
+        self.assertEquals(response.status_code, 401)
 
     def test_chart_list_unautenticated(self):
         # Access listing of charts unauthenticated -> Return all charts with Public Permission
