@@ -94,7 +94,7 @@ class DatasourceSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['creation_time', 'modification_time']
         extra_kwargs = {
-            'source': {'required': False, 'read_only': True},
+            'source': {'required': False, 'write_only': True},
             'owner': {'required': False, 'read_only': True},
             'datasource_name': {'required': False},
             'shared_users': {'required': False, 'write_only': True},
