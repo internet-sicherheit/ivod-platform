@@ -24,6 +24,7 @@ urlpatterns = [
     path('charts/<pk>/config', ChartConfigView.as_view(), name='chart-config'),
     path('charts/<pk>/files/<filename>', ChartFileView.as_view(), name='chart-files'),
 
+    path('code/<name>', get_common_code, name='code-common-get'),
     path('code/<version>/<name>', get_code, name='code-get'),
 
     path('datasources', DatasourceCreateListView.as_view(), name='datasource-add'),

@@ -324,6 +324,14 @@ def get_code(request: HttpRequest, version, name) -> HttpResponse:
     else:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
+def get_common_code(request: HttpRequest, name) -> HttpResponse:
+    """Get js code file specified by name and version"""
+    filepath = Path(get_code_base_path()).resolve().joinpath(name)
+    if filepath.exists():
+        return FileResponse(filepath.open("rb"))
+    else:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
 
 class ShareView(generics.RetrieveUpdateDestroyAPIView):
     """ Read, update or delete shares on sharable objects"""
