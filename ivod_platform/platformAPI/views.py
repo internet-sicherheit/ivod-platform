@@ -49,6 +49,7 @@ def debug_reset_database(request: HttpRequest) -> HttpResponse:
     case.client = case.client_class()
     case.SERVER_NAME = request.get_host().split(":")[0]
     case.SERVER_PORT = request.get_port()
+    case.PROTO = 'https' if request.is_secure() else 'http'
     case.setUp()
 
     return HttpResponse('')

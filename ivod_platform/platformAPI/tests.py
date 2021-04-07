@@ -15,14 +15,15 @@ class PlatformAPITestCase(APITestCase):
     def get_server_address(self):
         SERVER_NAME = getattr(self, 'SERVER_NAME', 'testserver')
         SERVER_PORT = getattr(self, 'SERVER_PORT', 80)
-        return (SERVER_NAME,SERVER_PORT)
+        PROTO = getattr(self, 'PROTO', 'http')
+        return (SERVER_NAME,SERVER_PORT, PROTO)
 
     def create_datasource(self, user, password, datasource_name, data):
         data = {'data': f'{b64encode(data).decode(encoding="utf-8")}', 'datasource_name': datasource_name}
         url = reverse("datasource-add")
         self.assertTrue(self.client.login(username=user, password=password))
-        (SERVER_NAME, SERVER_PORT) = self.get_server_address()
-        response = self.client.post(url, data, format='json', SERVER_NAME=SERVER_NAME, SERVER_PORT=SERVER_PORT)
+        (SERVER_NAME, SERVER_PORT,PROTO) = self.get_server_address()
+        response = self.client.post(url, data, format='json',  **{"SERVER_NAME": SERVER_NAME, "SERVER_PORT": SERVER_PORT, "wsgi.url_scheme": PROTO})
         self.client.logout()
         self.assertEquals(response.status_code, 201)
         datasource = Datasource.objects.get(id=response.data['id'])
@@ -39,8 +40,8 @@ class PlatformAPITestCase(APITestCase):
                 }
         url = reverse("chart-add")
         self.assertTrue(self.client.login(username=user, password=password))
-        (SERVER_NAME, SERVER_PORT) = self.get_server_address()
-        response = self.client.post(url, data, format='json', SERVER_NAME=SERVER_NAME, SERVER_PORT=SERVER_PORT)
+        (SERVER_NAME, SERVER_PORT, PROTO) = self.get_server_address()
+        response = self.client.post(url, data, format='json', **{"SERVER_NAME": SERVER_NAME, "SERVER_PORT": SERVER_PORT, "wsgi.url_scheme": PROTO})
         self.client.logout()
         self.assertEquals(response.status_code, 201)
         chart = Chart.objects.get(id=response.data['id'])
