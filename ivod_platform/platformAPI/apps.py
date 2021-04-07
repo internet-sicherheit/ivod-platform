@@ -11,6 +11,7 @@ class PlatformapiConfig(AppConfig):
 
     def ready(self):
         visualisations = Environment.import_all_visualisations()
+        get_code_base_path().mkdir(parents=True, exist_ok=True)
         with Path(pive.__file__).parent.joinpath("visualization").joinpath("static").joinpath("base.js").open("r") as infile:
             with get_code_base_path().joinpath("base.js").open("w") as outfile:
                 outfile.write(infile.read())
