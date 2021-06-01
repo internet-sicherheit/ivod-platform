@@ -32,6 +32,10 @@ urlpatterns = [
     path('datasources/<pk>/shared', DatasourceShareView.as_view(), name='datasource-shared'),
     path('datasources/<pk>/charttypes', ChartTypeView.as_view(), name='datasource-charttypes'),
 
+    path('groups', ShareGroupCreateListView.as_view(), name='sharegroup-add'),
+    path('groups/<pk>', ShareGroupRetrieveDestroyView.as_view(), name='sharegroup-get'),
+    path('groups/<pk>/properties', ShareGroupRetrieveUpdateDestroyView.as_view(), name='sharegroup-properties'),
+
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('token/verify/', TokenVerifyView.as_view(), name='token_verify'),

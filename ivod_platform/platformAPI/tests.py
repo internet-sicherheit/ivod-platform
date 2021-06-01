@@ -48,7 +48,22 @@ class PlatformAPITestCase(APITestCase):
         self.assertIsNotNone(chart)
         return chart
 
-
+    def create_group(self, user, password, name, public=False, admins=[], members=[]):
+        data = {'name': name,
+                'is_public': public,
+                'group_admins': admins,
+                'group_members': members
+                }
+        url = reverse("sharegroup-add")
+        self.assertTrue(self.client.login(username=user, password=password))
+        (SERVER_NAME, SERVER_PORT, PROTO) = self.get_server_address()
+        response = self.client.post(url, data, format='json', **{"SERVER_NAME": SERVER_NAME, "SERVER_PORT": SERVER_PORT,
+                                                                 "wsgi.url_scheme": PROTO})
+        self.client.logout()
+        self.assertEquals(response.status_code, 201)
+        group = ShareGroup.objects.get(id=response.data['id'])
+        self.assertIsNotNone(group)
+        return group
 
     def setUp(self):
         #TODO: Actually generate datasources and charts with the API endpoints
@@ -59,9 +74,9 @@ class PlatformAPITestCase(APITestCase):
         self.user3 = User.objects.create_user(username="user3", email=None, password="00000000")
         self.user4 = User.objects.create_user(username="user4", email=None, password="00000000")
 
-        self.group1 = Group.objects.create(name="group1")
-        self.group2 = Group.objects.create(name="group2")
-        self.group1.user_set.add(self.user4)
+
+        self.group1 = self.create_group("user1", "00000000", "group1", public=False, admins=[self.user2.id], members=[self.user4.id])
+        self.group2 = self.create_group("user1", "00000000", "group2", public=False, admins=[], members=[])
 
         datasource_output_path = get_datasource_base_path()
         if datasource_output_path.exists():
@@ -520,7 +535,6 @@ class PlatformAPITestCase(APITestCase):
         self.assertTrue(self.user3.id in data_after['users'])
         self.assertEquals(set(data_after['groups']), set(data_before.data['groups']))
 
-
     def test_add_user_to_share_as_shared_to_user(self):
         # As someone with the chart shared, share a chart with another user -> 403
         data = {'users': [self.user3.id]}
@@ -562,7 +576,6 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(response.status_code, 200)
         self.assertEquals(len(data_after['users']), 0)
         self.assertEquals(set(data_after['groups']), set(data_before.data['groups']))
-
 
     def test_del_shared_from_share_as_shared_to_user(self):
         # As someone with the chart shared, unshare a chart with another user -> 403
@@ -643,7 +656,6 @@ class PlatformAPITestCase(APITestCase):
         response = self.client.get(access_url, format='json')
         self.assertEquals(response.status_code, 200)
 
-
     def test_add_group_to_share_as_owner(self):
         # As the owner, share a chart with another user -> 200, new user is added
         data = {'groups': [self.group2.id]}
@@ -660,7 +672,6 @@ class PlatformAPITestCase(APITestCase):
         self.assertTrue(self.group1.id in data_after['groups'])
         self.assertTrue(self.group2.id in data_after['groups'])
         self.assertEquals(set(data_after['users']), set(data_before.data['users']))
-
 
     def test_add_group_to_share_as_shared_to_user(self):
         # As someone with the chart shared, share a chart with another group -> 403
@@ -703,7 +714,6 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(response.status_code, 200)
         self.assertEquals(len(data_after['groups']), 0)
         self.assertEquals(set(data_after['users']), set(data_before.data['users']))
-
 
     def test_del_shared_group_from_share_as_shared_to_user(self):
         # As someone with the chart shared, unshare a chart with another group -> 403
@@ -763,5 +773,217 @@ class PlatformAPITestCase(APITestCase):
         self.assertEquals(len(data_after['groups']), 1)
         self.assertEquals(data_before.data['groups'], [self.group1.id])
         self.assertEquals(set(data_after['users']), set(data_before.data['users']))
+
+    def test_create_new_group_unautenticated(self):
+        data = {'name': 'test_create_new_group_unautenticated',
+                'is_public': True
+                }
+        url = reverse("sharegroup-add")
+        response = self.client.post(url, data, format='json')
+        self.assertEquals(response.status_code, 401)
+
+    def test_create_new_group_with_members(self):
+        data = {'name': 'test_create_new_group_with_members',
+                'is_public': True,
+                'group_admins': [self.user1.id, self.user2.id, self.user4.id],
+                'group_members': [self.user1.id, self.user2.id, self.user3.id]
+                }
+        url = reverse("sharegroup-add")
+        self.assertTrue(self.client.login(username=self.user1.username, password="00000000"))
+        response = self.client.post(url, data, format='json')
+        self.client.logout()
+        self.assertEquals(response.status_code, 201)
+        group = ShareGroup.objects.get(id=response.data['id'])
+        self.assertIsNotNone(group)
+        self.assertEquals(group.owner, self.user1)
+        self.assertIn(self.user1, group.group_admins.all())
+        self.assertIn(self.user2, group.group_admins.all())
+        self.assertIn(self.user4, group.group_admins.all())
+        self.assertIn(self.user1, group.group_members.all())
+        self.assertIn(self.user2, group.group_members.all())
+        self.assertIn(self.user3, group.group_members.all())
+
+    def test_delete_group_member_as_owner(self):
+        data = {'name': 'test_delete_group_member_as_owner',
+                'is_public': True,
+                'group_admins': [self.user1.id, self.user2.id, self.user4.id],
+                'group_members': [self.user1.id, self.user2.id, self.user3.id]
+                }
+        url = reverse("sharegroup-add")
+        self.assertTrue(self.client.login(username=self.user1.username, password="00000000"))
+        response = self.client.post(url, data, format='json')
+        self.assertEquals(response.status_code, 201)
+
+        data = {
+            'group_members': [self.user2.id]
+        }
+        url = reverse("sharegroup-properties", kwargs={'pk': response.data['id']})
+        after = self.client.delete(url, data, format='json')
+        group = ShareGroup.objects.get(id=response.data['id'])
+        self.assertIsNotNone(group)
+        self.assertEquals(group.owner, self.user1)
+        self.assertIn(self.user1, group.group_admins.all())
+        self.assertIn(self.user2, group.group_admins.all())
+        self.assertIn(self.user4, group.group_admins.all())
+        self.assertIn(self.user1, group.group_members.all())
+        self.assertNotIn(self.user2, group.group_members.all())
+        self.assertIn(self.user3, group.group_members.all())
+
+    def test_delete_group_member_as_admin(self):
+        data = {'name': 'test_delete_group_member_as_owner',
+                'is_public': True,
+                'group_admins': [self.user1.id, self.user2.id, self.user4.id],
+                'group_members': [self.user1.id, self.user2.id, self.user3.id]
+                }
+        url = reverse("sharegroup-add")
+        self.assertTrue(self.client.login(username=self.user4.username, password="00000000"))
+        response = self.client.post(url, data, format='json')
+        self.assertEquals(response.status_code, 201)
+
+        data = {
+            'group_members': [self.user2.id]
+        }
+        url = reverse("sharegroup-properties", kwargs={'pk': response.data['id']})
+        after = self.client.delete(url, data, format='json')
+        group = ShareGroup.objects.get(id=response.data['id'])
+        self.assertIsNotNone(group)
+        self.assertEquals(group.owner, self.user4)
+        self.assertIn(self.user1, group.group_admins.all())
+        self.assertIn(self.user2, group.group_admins.all())
+        self.assertIn(self.user4, group.group_admins.all())
+        self.assertIn(self.user1, group.group_members.all())
+        self.assertNotIn(self.user2, group.group_members.all())
+        self.assertIn(self.user3, group.group_members.all())
+
+    def test_delete_group_member_as_member(self):
+        data = {'name': 'test_delete_group_member_as_owner',
+                'is_public': True,
+                'group_admins': [self.user1.id, self.user2.id, self.user4.id],
+                'group_members': [self.user1.id, self.user2.id, self.user3.id]
+                }
+        url = reverse("sharegroup-add")
+        self.assertTrue(self.client.login(username=self.user1.username, password="00000000"))
+        response = self.client.post(url, data, format='json')
+        self.assertEquals(response.status_code, 201)
+
+        data = {
+            'group_members': [self.user2.id]
+        }
+        url = reverse("sharegroup-properties", kwargs={'pk': response.data['id']})
+        self.assertTrue(self.client.login(username=self.user3.username, password="00000000"))
+        after = self.client.delete(url, data, format='json')
+        self.assertEquals(after.status_code, 403)
+        group = ShareGroup.objects.get(id=response.data['id'])
+        self.assertIsNotNone(group)
+        self.assertEquals(group.owner, self.user1)
+        self.assertIn(self.user1, group.group_admins.all())
+        self.assertIn(self.user2, group.group_admins.all())
+        self.assertIn(self.user4, group.group_admins.all())
+        self.assertIn(self.user1, group.group_members.all())
+        self.assertIn(self.user2, group.group_members.all())
+        self.assertIn(self.user3, group.group_members.all())
+
+    def add_user_to_group(self, inserting_user, inserted_users, group, member=True, admin=False):
+        data = {}
+        if member:
+            data['group_members'] = [user.id for user in inserted_users]
+        if admin:
+            data['group_admins'] = [user.id for user in inserted_users]
+        url = reverse("sharegroup-properties", kwargs={'pk': group.id})
+        if inserting_user:
+            self.assertTrue(self.client.login(username=inserting_user.username, password='00000000'))
+        before_state = self.client.get(url, format='json')
+        after_state = self.client.patch(url, data, format='json')
+        if inserting_user:
+            self.client.logout()
+        return (before_state, after_state)
+
+    def test_add_user_to_group_members_as_owner(self):
+        before_state, after_state = self.add_user_to_group(self.user1, [self.user3], self.group1, True, False)
+
+        self.assertNotIn(self.user3.id, before_state.data['group_members'])
+        self.assertNotIn(self.user3.id, before_state.data['group_admins'])
+        self.assertEquals(after_state.status_code, 200)
+        self.assertIn(self.user3.id, after_state.data['group_members'])
+        self.assertNotIn(self.user3.id, after_state.data['group_admins'])
+
+    def test_add_user_to_group_admins_as_owner(self):
+        before_state, after_state = self.add_user_to_group(self.user1, [self.user3], self.group1, False, True)
+
+        self.assertNotIn(self.user3.id, before_state.data['group_members'])
+        self.assertNotIn(self.user3.id, before_state.data['group_admins'])
+        self.assertEquals(after_state.status_code, 200)
+        self.assertNotIn(self.user3.id, after_state.data['group_members'])
+        self.assertIn(self.user3.id, after_state.data['group_admins'])
+
+    def test_add_user_to_group_members_as_admin(self):
+        before_state, after_state = self.add_user_to_group(self.user2, [self.user3], self.group1, True, False)
+
+        self.assertNotIn(self.user3.id, before_state.data['group_members'])
+        self.assertNotIn(self.user3.id, before_state.data['group_admins'])
+        self.assertEquals(after_state.status_code, 200)
+        self.assertIn(self.user3.id, after_state.data['group_members'])
+        self.assertNotIn(self.user3.id, after_state.data['group_admins'])
+
+    def test_add_user_to_group_admins_as_admin(self):
+        before_state, after_state = self.add_user_to_group(self.user2, [self.user3], self.group1, False, True)
+
+        self.assertNotIn(self.user3.id, before_state.data['group_members'])
+        self.assertNotIn(self.user3.id, before_state.data['group_admins'])
+        self.assertEquals(after_state.status_code, 200)
+        self.assertNotIn(self.user3.id, after_state.data['group_members'])
+        self.assertIn(self.user3.id, after_state.data['group_admins'])
+
+    def test_add_user_to_group_members_as_member(self):
+        before_state, after_state = self.add_user_to_group(self.user4, [self.user3], self.group1, True, False)
+
+        self.assertEquals(before_state.status_code, 403)
+        self.assertEquals(after_state.status_code, 403)
+        group = ShareGroup.objects.get(id=self.group1.id)
+        self.assertNotIn(self.user3.id, group.group_members.all())
+        self.assertNotIn(self.user3.id, group.group_admins.all())
+
+    def test_add_user_to_group_admins_as_member(self):
+        before_state, after_state = self.add_user_to_group(self.user4, [self.user3], self.group1, False, True)
+
+        self.assertEquals(before_state.status_code, 403)
+        self.assertEquals(after_state.status_code, 403)
+        group = ShareGroup.objects.get(id=self.group1.id)
+        self.assertNotIn(self.user3.id, group.group_members.all())
+        self.assertNotIn(self.user3.id, group.group_admins.all())
+
+    def test_add_user_to_group_members_as_nonmember(self):
+        before_state, after_state = self.add_user_to_group(self.user3, [self.user3], self.group1, True, False)
+
+        self.assertEquals(before_state.status_code, 403)
+        self.assertEquals(after_state.status_code, 403)
+        group = ShareGroup.objects.get(id=self.group1.id)
+        self.assertNotIn(self.user3.id, group.group_members.all())
+        self.assertNotIn(self.user3.id, group.group_admins.all())
+
+    def test_add_user_to_group_admins_as_nonmember(self):
+        before_state, after_state = self.add_user_to_group(self.user3, [self.user3], self.group1, False, True)
+
+        self.assertEquals(before_state.status_code, 403)
+        self.assertEquals(after_state.status_code, 403)
+        group = ShareGroup.objects.get(id=self.group1.id)
+        self.assertNotIn(self.user3.id, group.group_members.all())
+        self.assertNotIn(self.user3.id, group.group_admins.all())
+
+    def test_add_user_to_group_members_as_anonymous(self):
+        before_state, after_state = self.add_user_to_group(None, [self.user3], self.group1, True, False)
+
+        self.assertEquals(after_state.status_code, 401)
+        group = ShareGroup.objects.get(id=self.group1.id)
+        self.assertNotIn(self.user3.id, group.group_members.all())
+        self.assertNotIn(self.user3.id, group.group_admins.all())
+
+    def test_add_user_to_group_admins_as_anonymous(self):
+        before_state, after_state = self.add_user_to_group(None, [self.user3], self.group1, False, True)
+
+        self.assertEquals(after_state.status_code, 401)
+        group = ShareGroup.objects.get(id=self.group1.id)
+        self.assertNotIn(self.user3.id, group.group_members.all())
+        self.assertNotIn(self.user3.id, group.group_admins.all())
 
     #TODO: Check responses for values that should not be visible for all users to confirm correct filtering on serializer level

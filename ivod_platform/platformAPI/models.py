@@ -3,6 +3,18 @@ from django.contrib.auth.models import User, Group
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+class ShareGroup(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="group_owner")
+    name = models.CharField(max_length=256)
+    group_admins = models.ManyToManyField(User, related_name="group_admins", blank=True,)
+    group_members = models.ManyToManyField(User, related_name="group_members", blank=True,)
+    is_public = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['owner', 'name'], name='group_unique_user_scope_path'),
+        ]
+
 # Create your models here.
 class Datasource(models.Model):
     source = models.URLField()
@@ -12,10 +24,10 @@ class Datasource(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="datasource_owner")
 
     shared_users = models.ManyToManyField(User, related_name="datasource_shared_users")
-    shared_groups = models.ManyToManyField(Group, related_name="datasource_shared_groups")
+    shared_groups = models.ManyToManyField(ShareGroup, related_name="datasource_shared_groups")
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['owner','datasource_name'],name='datasource_unique_user_datasource_name'),
+            models.UniqueConstraint(fields=['owner', 'datasource_name'],name='datasource_unique_user_datasource_name'),
         ]
 
 class Chart(models.Model):
@@ -35,7 +47,7 @@ class Chart(models.Model):
     visibility = models.IntegerField(default=VISIBILITY_PRIVATE)
 
     shared_users = models.ManyToManyField(User, related_name="chart_shared_users")
-    shared_groups = models.ManyToManyField(Group, related_name="chart_shared_groups")
+    shared_groups = models.ManyToManyField(ShareGroup, related_name="chart_shared_groups")
 
     class Meta:
         constraints = [
@@ -54,14 +66,3 @@ class EnhancedUser(models.Model):
     def on_create_user(sender, **kwargs):
         if 'created' in kwargs and kwargs['created']:
             EnhancedUser.objects.create(auth_user=kwargs['instance'])
-
-
-class EnhancedGroup(models.Model):
-    auth_group = models.ForeignKey(Group, on_delete=models.CASCADE)
-    #datasources_shared_with_group = models.ManyToManyField(Datasource)
-    #charts_shared_with_group = models.ManyToManyField(Chart)
-
-    @receiver(post_save, sender=Group)
-    def on_create_user(sender, **kwargs):
-        if 'created' in kwargs and kwargs['created']:
-            EnhancedGroup.objects.create(auth_group=kwargs['instance'])

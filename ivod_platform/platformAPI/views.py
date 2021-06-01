@@ -3,7 +3,7 @@ from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpRes
 from django.contrib.auth.models import User, Group
 from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import EnhancedUser, EnhancedGroup, Datasource, Chart
+from .models import EnhancedUser, ShareGroup, Datasource, Chart
 from rest_framework import generics
 from .serializers import *
 from .permissions import *
@@ -34,7 +34,7 @@ def debug_reset_database(request: HttpRequest) -> HttpResponse:
     # Delete all admins and admin groups
     for e_user in EnhancedUser.objects.all():
         e_user.delete()
-    for e_group in EnhancedGroup.objects.all():
+    for e_group in ShareGroup.objects.all():
         e_group.delete()
 
     # Should have been done through cascadation, just to be safe
@@ -333,12 +333,127 @@ def get_common_code(request: HttpRequest, name) -> HttpResponse:
     else:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
+class ShareGroupCreateListView(generics.ListCreateAPIView):
+    """Add or list existing datasources, for which the caller has access rights"""
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ShareGroupSerializer
+    queryset = ShareGroup.objects.all()
+
+    def post(self, request, *args, **kwargs):
+        serializer = ShareGroupSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+
+        #FIXME:
+        # Only show if not hidden or user has access
+        is_public_permission = IsGroupPublic()
+        is_user_group_owner_permission = IsUserGroupOwner()
+        is_user_group_member_permission = IsUserGroupMember()
+        is_user_group_admin_permission = IsUserGroupAdmin()
+        queryset = [obj for obj in queryset if
+                    is_public_permission.has_object_permission(request, self, obj)
+                    or is_user_group_owner_permission.has_object_permission(request, self, obj)
+                    or is_user_group_member_permission.has_object_permission(request, self, obj)
+                    or is_user_group_admin_permission.has_object_permission(request, self, obj)]
+
+        serializer = ShareGroupSerializer(data=queryset, many=True)
+        serializer.is_valid()
+        return Response(serializer.data)
+
+class ShareGroupRetrieveDestroyView(generics.RetrieveDestroyAPIView):
+    serializer_class = ShareGroupSerializer
+    queryset = ShareGroup.objects.all()
+    permission_classes = [IsGroupPublic | IsUserGroupOwner | IsUserGroupAdmin | IsUserGroupMember]
+
+    def get_object(self):
+        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def delete(self, request, *args, **kwargs):
+        current_object = self.get_object()
+        if type(current_object) != ShareGroup:
+            return current_object
+
+        # Check if modifying user is owner
+        owner_permission = IsUserGroupOwner()
+        if not owner_permission.has_object_permission(request, self, current_object):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        current_object.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class ShareGroupRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+
+    serializer_class = ShareGroupSerializer
+    queryset = ShareGroup.objects.all()
+    permission_classes = [IsUserGroupOwner | IsUserGroupAdmin]
+
+    #FIXME: Validate inputs for correct types
+
+    def get_affected_users(self, fieldname, request):
+        """Get user objects affected in this request"""
+        affected_users = []
+        for pk in request.data.get(fieldname, []):
+            try:
+                affected_users.append(User.objects.get(pk=pk))
+            except ObjectDoesNotExist:
+                return Response({'error': {'key': pk, 'reason': 'No such User'}}, status=status.HTTP_400_BAD_REQUEST)
+        return affected_users
+
+    def get_object(self):
+        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def put(self, request, *args, **kwargs):
+        # Unsupported, return 405
+        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def patch(self, request, *args, **kwargs):
+        obj = self.get_object()
+
+        new_members = self.get_affected_users("group_members", request)
+        if type(new_members) == Response:
+            # Getting affected users encountered an error, returned a response instead of a list User objects
+            return new_members
+        new_admins = self.get_affected_users("group_admins", request)
+        if type(new_admins) == Response:
+            # Getting affected groups encountered an error, returned a response instead of a list Group objects
+            return new_admins
+
+        # Add users and groups to object
+        obj.group_members.add(*new_members)
+        obj.group_admins.add(*new_admins)
+        # Return current shares
+        return self.get(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        obj = self.get_object()
+
+        new_members = self.get_affected_users("group_members",request)
+        if type(new_members) == Response:
+            # Getting affected users encountered an error, returned a response instead of a list User objects
+            return new_members
+        new_admins = self.get_affected_users("group_admins",request)
+        if type(new_admins) == Response:
+            # Getting affected groups encountered an error, returned a response instead of a list Group objects
+            return new_admins
+
+        # Add users and groups to object
+        obj.group_members.remove(*new_members)
+        obj.group_admins.remove(*new_admins)
+        # Return current shares
+        return self.get(request, *args, **kwargs)
 
 class ShareView(generics.RetrieveUpdateDestroyAPIView):
     """ Read, update or delete shares on sharable objects"""
     serializer_class = serializers.Serializer
-
-    #FIXME: Validate inputs for correct types
 
     def get_affected_users(self, request):
         """Get user objects affected in this request"""
@@ -356,9 +471,9 @@ class ShareView(generics.RetrieveUpdateDestroyAPIView):
         affected_groups = []
         for pk in request.data.get("groups", []):
             try:
-                affected_groups.append(Group.objects.get(pk=pk))
+                affected_groups.append(ShareGroup.objects.get(pk=pk))
             except ObjectDoesNotExist:
-                return Response({'error': {'key': pk, 'reason': 'No such User'}}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': {'key': pk, 'reason': 'No such Group'}}, status=status.HTTP_400_BAD_REQUEST)
         return affected_groups
 
     def get_object(self):
@@ -417,7 +532,6 @@ class ChartShareView(ShareView):
     """ShareView for Charts"""
     permission_classes = [permissions.IsAuthenticated & IsChartOwner]
     queryset = Chart.objects.all()
-
 
 class DatasourceShareView(ShareView):
     """ShareView for Datasources"""
