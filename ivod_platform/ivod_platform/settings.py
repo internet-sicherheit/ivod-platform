@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     'platformFrontend',
     'rest_framework',
     'django_filters',
+    'rest_framework_simplejwt',
 ]
 
 MIDDLEWARE = [
@@ -88,6 +89,11 @@ MIDDLEWARE = [
 
 REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': ('django_filters.rest_framework.DjangoFilterBackend',),
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication'
+    ),
 }
 
 ROOT_URLCONF = 'ivod_platform.urls'
@@ -175,3 +181,7 @@ JS_BASE_PATH = str(BASE_DIR.joinpath("code"))
 #CORS Config
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost').split(',')
+
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT =True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

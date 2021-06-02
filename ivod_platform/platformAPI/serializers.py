@@ -120,9 +120,9 @@ class DatasourceSerializer(serializers.ModelSerializer):
         if 'url' in data:
             #TODO: Validate URL here
             pass
-        else:
-            #TODO: Validate actual data here:
-            pass
+
+        #TODO: Validate actual data here
+
         if self.context['request'].user == None or type(self.context['request'].user) == AnonymousUser:
             raise serializers.ValidationError("Only users may create Charts")
         return data
@@ -138,6 +138,7 @@ class DatasourceSerializer(serializers.ModelSerializer):
             file_path = get_datasource_base_path().joinpath(uuid4().hex)
             with file_path.open("w") as file:
                 file.write(data.decode('utf-8'))
+            # TODO: Handle Database exceptions better (especially violated constraints)
             datasource = Datasource.objects.create(source=file_path, datasource_name=validated_data['datasource_name'], owner=user)
         return datasource
 
@@ -146,12 +147,60 @@ class DatasourceSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+class ShareGroupSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = ShareGroup
+        fields = '__all__'
+        read_only_fields = ['owner','name']
+        extra_kwargs = {
+            'group_admins': {'required': False},
+            'group_members': {'required': False},
+            'is_public': {'required': False}
+        }
+
+    def validate(self, data):
+        unvalidated_data = self.context['request'].data
+        unvalidated_data.update(data)
+        # Owner will be set by the requesting user. If it is set, remove it
+        if 'owner' in unvalidated_data:
+            unvalidated_data.pop('owner')
+        return unvalidated_data
+
+    def validate_create(self, data):
+        """Validation step required on creation only."""
+
+        if 'name' not in data:
+            raise ValueError("No group name chosen.")
+        if 'is_public' not in data:
+            data['is_public'] = False
+        if 'group_admins' not in data:
+            data['group_admins'] = []
+        if 'group_members' not in data:
+            data['group_members'] = []
+        if self.context['request'].user == None or type(self.context['request'].user) == AnonymousUser:
+            raise serializers.ValidationError("Only users may create Groups")
+        return data
+
+    def create(self, validated_data):
+        validated_data = self.validate_create(validated_data)
+        user = self.context['request'].user
+        #TODO: How to handle shares during creation? Ignore and keep sharing a separate action?
+        group = ShareGroup.objects.create(owner=user,
+                                          name=validated_data["name"],
+                                          is_public=validated_data["is_public"])
+        group.group_admins.set(validated_data["group_admins"])
+        group.group_members.set(validated_data["group_members"])
+        return group
+
+    def update(self, instance, validated_data):
+        instance.is_public = validated_data.get('is_public', instance.is_public)
+        instance.group_admins = validated_data.get('group_admins', instance.group_admins)
+        instance.group_members = validated_data.get('group_members', instance.group_members)
+        instance.save()
+        return instance
+
 class EnhancedUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = EnhancedUser
-        fields = '__all__'
-
-class EnhancedGroupSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = EnhancedGroup
         fields = '__all__'
