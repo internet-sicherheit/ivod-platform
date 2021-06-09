@@ -15,6 +15,7 @@ from random import getrandbits
 from base64 import b64encode
 import os
 from sys import stderr
+import datetime
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 
@@ -73,7 +74,8 @@ INSTALLED_APPS = [
     'platformFrontend',
     'rest_framework',
     'django_filters',
-    'rest_framework_simplejwt',
+    'rest_framework_jwt',
+    #'rest_framework_simplejwt',
 ]
 
 MIDDLEWARE = [
@@ -85,15 +87,22 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'platformAPI.middleware.TokenCopierMiddleware',
 ]
 
 REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': ('django_filters.rest_framework.DjangoFilterBackend',),
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.BasicAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
-        'rest_framework_simplejwt.authentication.JWTAuthentication'
+        #'rest_framework.authentication.BasicAuthentication',
+        #'rest_framework.authentication.SessionAuthentication',
+        #'rest_framework_simplejwt.authentication.JWTAuthentication'
+        'rest_framework_jwt.authentication.JSONWebTokenAuthentication',
     ),
+}
+
+JWT_AUTH = {
+    'JWT_AUTH_COOKIE': "JWT-Cookie",
+    'JWT_EXPIRATION_DELTA': datetime.timedelta(hours=1),
 }
 
 ROOT_URLCONF = 'ivod_platform.urls'

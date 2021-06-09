@@ -8,11 +8,13 @@ from .models import Chart
 from .views import *
 from .serializers import *
 
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-    TokenVerifyView,
-)
+# from rest_framework_simplejwt.views import (
+#     TokenObtainPairView,
+#     TokenRefreshView,
+#     TokenVerifyView,
+# )
+
+from rest_framework_jwt.views import obtain_jwt_token, verify_jwt_token, refresh_jwt_token
 
 
 urlpatterns = [
@@ -36,9 +38,13 @@ urlpatterns = [
     path('groups/<pk>', ShareGroupRetrieveDestroyView.as_view(), name='sharegroup-get'),
     path('groups/<pk>/properties', ShareGroupRetrieveUpdateDestroyView.as_view(), name='sharegroup-properties'),
 
-    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('token/verify/', TokenVerifyView.as_view(), name='token_verify'),
+    # path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    # path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    # path('token/verify/', TokenVerifyView.as_view(), name='token_verify'),
+
+    path('token/',  obtain_jwt_token),
+    path('token/refresh/', refresh_jwt_token, name='token_refresh'),
+    path('token/verify/', verify_jwt_token, name='token_verify'),
 ]
 if getattr(settings, "DEBUG", False):
     urlpatterns.append(path("debug_reset_database", debug_reset_database))
