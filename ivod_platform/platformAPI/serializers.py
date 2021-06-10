@@ -204,3 +204,8 @@ class EnhancedUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = EnhancedUser
         fields = '__all__'
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'id')

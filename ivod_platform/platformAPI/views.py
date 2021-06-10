@@ -554,3 +554,12 @@ class ChartTypeView(generics.ListAPIView):
         #TODO: Error handling (Source unreachable, pive error)
         supported = get_chart_types_for_datasource(datasource)
         return Response(supported)
+
+class LoggedInUserView(generics.RetrieveAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+    def get(self, request, *args, **kwargs):
+        serializer = UserSerializer(request.user, many=False, context={'request': request})
+        return Response(serializer.data)

@@ -45,6 +45,8 @@ urlpatterns = [
     path('token/',  obtain_jwt_token),
     path('token/refresh/', refresh_jwt_token, name='token_refresh'),
     path('token/verify/', verify_jwt_token, name='token_verify'),
+
+    path('user/', LoggedInUserView.as_view(), name='get_current_user')
 ]
 if getattr(settings, "DEBUG", False):
     urlpatterns.append(path("debug_reset_database", debug_reset_database))
