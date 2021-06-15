@@ -1,10 +1,8 @@
 from django.conf import settings
 from json import loads, dumps
+import datetime
 
 from django.core.exceptions import SuspiciousOperation
-from rest_framework import status
-from rest_framework.response import Response
-from sys import stderr
 
 class TokenCopierMiddleware:
     def __init__(self, get_response):
@@ -30,7 +28,10 @@ class TokenCopierMiddleware:
                         request._body = dumps(body).encode(request.encoding)
                     else:
                         raise ValueError("Unsupported content Type")
+
             response = self.get_response(request)
+            if request.path == '/api/token/blacklist/' and response.status_code == 201:
+                response.delete_cookie(JWT_AUTH_COOKIE)
         except Exception as e:
             raise SuspiciousOperation()
         # Code to be executed for each request/response after

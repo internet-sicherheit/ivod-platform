@@ -15,6 +15,7 @@ from .serializers import *
 # )
 
 from rest_framework_jwt.views import obtain_jwt_token, verify_jwt_token, refresh_jwt_token
+from rest_framework_jwt.blacklist.views import  BlacklistView
 
 
 urlpatterns = [
@@ -45,6 +46,7 @@ urlpatterns = [
     path('token/',  obtain_jwt_token),
     path('token/refresh/', refresh_jwt_token, name='token_refresh'),
     path('token/verify/', verify_jwt_token, name='token_verify'),
+    path('token/blacklist/', BlacklistView.as_view({"post": "create"}), name='token_blacklist'),
 
     path('user/', LoggedInUserView.as_view(), name='get_current_user')
 ]
