@@ -581,7 +581,7 @@ class MultiUserView(generics.CreateAPIView):
 
 
     def post(self, request, *args, **kwargs):
-        objects = get_list_or_404(self.get_queryset(), pk__in=request.data["users"])
+        objects = User.objects.filter(pk__in=request.data["users"])
         serializer = UserSerializer(objects, many=True, context={'request': request})
         return Response(serializer.data)
 
