@@ -48,8 +48,11 @@ urlpatterns = [
     path('token/verify/', verify_jwt_token, name='token_verify'),
     path('token/blacklist/', BlacklistView.as_view({"post": "create"}), name='token_blacklist'),
 
-    path('user/', LoggedInUserView.as_view(), name='get_current_user')
+    path('user/', LoggedInUserView.as_view(), name='get_current_user'),
+    path('user/<pk>/', UserView.as_view(), name='get_user'),
+    path('users/', MultiUserView.as_view(), name='get_users'),
 ]
+
 if getattr(settings, "DEBUG", False):
     urlpatterns.append(path("debug_reset_database", debug_reset_database))
     urlpatterns.append(path("helloworld", helloworld))

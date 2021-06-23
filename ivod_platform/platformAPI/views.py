@@ -1,4 +1,4 @@
-from django.shortcuts import render, get_object_or_404, reverse
+from django.shortcuts import render, get_object_or_404, reverse, get_list_or_404
 from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseForbidden, FileResponse
 from django.contrib.auth.models import User, Group
 from django_filters.rest_framework import DjangoFilterBackend
@@ -563,3 +563,27 @@ class LoggedInUserView(generics.RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         serializer = UserSerializer(request.user, many=False, context={'request': request})
         return Response(serializer.data)
+
+class UserView(generics.RetrieveAPIView):
+    #permission_classes = [permissions.IsAuthenticated] #TODO: Filtering for hidden profiles/ sensitive user info?
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+    def get_object(self):
+        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+class MultiUserView(generics.CreateAPIView):
+    #permission_classes = [permissions.IsAuthenticated] #TODO: Filtering for hidden profiles/ sensitive user info?
+    queryset = User.objects.all()
+    #serializer_class = UserSerializer
+
+
+    def post(self, request, *args, **kwargs):
+        objects = get_list_or_404(self.get_queryset(), pk__in=request.data["users"])
+        serializer = UserSerializer(objects, many=True, context={'request': request})
+        return Response(serializer.data)
+
+
+
