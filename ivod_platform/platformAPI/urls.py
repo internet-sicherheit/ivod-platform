@@ -48,9 +48,10 @@ urlpatterns = [
     path('token/verify/', verify_jwt_token, name='token_verify'),
     path('token/blacklist/', BlacklistView.as_view({"post": "create"}), name='token_blacklist'),
 
-    path('user/', LoggedInUserView.as_view(), name='get_current_user'),
-    path('user/<pk>/', UserView.as_view(), name='get_user'),
-    path('users/', MultiUserView.as_view(), name='get_users'),
+    path('user/me/', LoggedInUserView.as_view(), name='get_current_user'),
+    path('user/id/<pk>/', UserView.as_view(), name='get_user'),
+    path('user/search/', UserSearchView.as_view(), name='search_user_by_name'),
+    path('user/', MultiUserView.as_view(), name='get_users'),
 ]
 
 if getattr(settings, "DEBUG", False):

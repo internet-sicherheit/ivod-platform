@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, reverse, get_list_or_404
 from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseForbidden, FileResponse
 from django.contrib.auth.models import User, Group
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Q
 
 from .models import EnhancedUser, ShareGroup, Datasource, Chart
 from rest_framework import generics
@@ -573,6 +574,16 @@ class UserView(generics.RetrieveAPIView):
         obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
         self.check_object_permissions(self.request, obj)
         return obj
+
+class UserSearchView(generics.CreateAPIView):
+    #permission_classes = [permissions.IsAuthenticated] #TODO: Filtering for hidden profiles/ sensitive user info?
+    queryset = User.objects.all()
+    #serializer_class = UserSerializer
+
+    def post(self, request, *args, **kwargs):
+        objects = User.objects.filter(Q(username__contains=request.data["name"]) | Q(first_name__contains=request.data["name"]) | Q(last_name__contains=request.data["name"]))
+        serializer = UserSerializer(objects, many=True, context={'request': request})
+        return Response(serializer.data)
 
 class MultiUserView(generics.CreateAPIView):
     #permission_classes = [permissions.IsAuthenticated] #TODO: Filtering for hidden profiles/ sensitive user info?
