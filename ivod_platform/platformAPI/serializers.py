@@ -206,6 +206,81 @@ class EnhancedUserSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class UserSerializer(serializers.ModelSerializer):
+    first_name = serializers.SerializerMethodField('get_first_name')
+    last_name = serializers.SerializerMethodField('get_last_name')
+    public_profile = serializers.SerializerMethodField('get_public_profile')
+    real_name = serializers.SerializerMethodField('get_real_name')
+
+    def get_additional_data(self, instance):
+        return instance.additional_user_data.all()[0]
+
+    def get_first_name(self, instance):
+        additional_data = self.get_additional_data(instance)
+        if self.context['request'].user == instance or additional_data.real_name:
+            return instance.first_name
+        else:
+            return None
+
+    def get_last_name(self, instance):
+        additional_data = self.get_additional_data(instance)
+        if self.context['request'].user == instance or additional_data.real_name:
+            return instance.last_name
+        else:
+            return None
+
+    def get_public_profile(self, instance):
+        additional_data = self.get_additional_data(instance)
+        return additional_data.public_profile
+
+    def get_real_name(self, instance):
+        additional_data = self.get_additional_data(instance)
+        return additional_data.real_name
+
     class Meta:
         model = User
-        fields = ('username', 'email', 'id')
+        fields = ('username', 'email', 'id', 'first_name', 'last_name', 'public_profile', 'real_name')
+        read_only_fields = ['id']
+        extra_kwargs = {
+            'password': {'required': False, 'write_only':True},
+            'username': {'required': False},
+            'email': {'required': False},
+            'first_name': {'required': False},
+            'last_name': {'required': False},
+            'public_profile': {'required': False},
+            'real_name': {'required': False},
+        }
+
+    def validate(self, data):
+        unvalidated_data = self.context['request'].data
+        unvalidated_data.update(data)
+        # Owner will be set by the requesting user. If it is set, remove it
+        if 'owner' in unvalidated_data:
+            unvalidated_data.pop('owner')
+        return unvalidated_data
+
+    def validate_create(self, data):
+        """Validation step required on creation only."""
+        if 'username' not in data:
+            raise ValueError("Username required")
+        if 'password' not in data:
+            raise ValueError("Passwort required")
+        return data
+
+    def create(self, validated_data):
+        validated_data = self.validate_create(validated_data)
+        user = User.objects.create_user(username=validated_data['username'], password=validated_data['username'], email=validated_data.get('email'))
+        user.first_name = validated_data.get('first_name', "")
+        user.last_name = validated_data.get('last_name', "")
+        return user
+
+    def update(self, instance, validated_data):
+        instance.first_name = validated_data.get('first_name', instance.first_name)
+        instance.last_name = validated_data.get('last_name', instance.last_name)
+        instance.username = validated_data.get('username', instance.username)
+        additional_user_data = instance.additional_user_data.all()[0]
+        additional_user_data.public_profile = validated_data.get('public_profile', additional_user_data.public_profile)
+        additional_user_data.real_name = validated_data.get('real_name', additional_user_data.public_profile)
+        #FIXME: How to do cascading saves, this is a potential threat to data integrity if only one save() is successful without rollback
+        additional_user_data.save()
+        instance.save()
+        return instance

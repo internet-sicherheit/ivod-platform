@@ -556,13 +556,19 @@ class ChartTypeView(generics.ListAPIView):
         supported = get_chart_types_for_datasource(datasource)
         return Response(supported)
 
-class LoggedInUserView(generics.RetrieveAPIView):
+class LoggedInUserView(generics.RetrieveUpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
     def get(self, request, *args, **kwargs):
         serializer = UserSerializer(request.user, many=False, context={'request': request})
+        return Response(serializer.data)
+
+    def put(self, request, *args, **kwargs):
+        serializer = UserSerializer(request.user, data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
         return Response(serializer.data)
 
 class UserView(generics.RetrieveAPIView):
@@ -581,7 +587,17 @@ class UserSearchView(generics.CreateAPIView):
     #serializer_class = UserSerializer
 
     def post(self, request, *args, **kwargs):
-        objects = User.objects.filter(Q(username__contains=request.data["name"]) | Q(first_name__contains=request.data["name"]) | Q(last_name__contains=request.data["name"]))
+        #FIXME: Workaround, moving to uuid will break this
+        try:
+            id_query_input = int(request.data["name"])
+        except:
+            id_query_input = -1
+        search_filter = ( Q(id=id_query_input) #Q(id=request.data["name"]) #direct lookup, should always work
+                          | Q(additional_user_data__public_profile=True) #Otherwise only look for public profiles
+                            & ( Q(username__contains=request.data["name"]) # Searching by username should work even if real name is hidden
+                                  | (Q(additional_user_data__real_name=True) #Search by real name only when real name is publicly displayed
+                                     & ( Q(first_name__contains=request.data["name"]) | Q(last_name__contains=request.data["name"])))))
+        objects = User.objects.filter(search_filter)
         serializer = UserSerializer(objects, many=True, context={'request': request})
         return Response(serializer.data)
 

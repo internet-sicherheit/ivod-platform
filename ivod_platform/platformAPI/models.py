@@ -58,7 +58,9 @@ class EnhancedUser(models.Model):
     #TODO: Better name
     #TODO: Make auth_user private key
 
-    auth_user = models.ForeignKey(User, on_delete=models.CASCADE)
+    auth_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="additional_user_data")
+    real_name = models.BooleanField(default=False)
+    public_profile = models.BooleanField(default=False)
     #datasources_shared_with_user = models.ManyToManyField(Datasource)
     #charts_shared_with_user = models.ManyToManyField(Chart)
 
