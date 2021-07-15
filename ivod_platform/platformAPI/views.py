@@ -1,5 +1,7 @@
 from django.shortcuts import render, get_object_or_404, reverse, get_list_or_404
 from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseForbidden, FileResponse
+from django.utils.decorators import method_decorator
+from ratelimit.decorators import ratelimit
 from django.contrib.auth.models import User, Group
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
@@ -16,6 +18,10 @@ from rest_framework import permissions
 from json import load, loads, dumps
 
 from django.core.exceptions import ObjectDoesNotExist
+
+from django.core.mail import send_mail, get_connection
+from datetime import datetime
+from django.core.mail.backends.smtp import EmailBackend
 
 # Create your views here.
 def helloworld(request: HttpRequest) -> HttpResponse:
@@ -611,6 +617,26 @@ class MultiUserView(generics.CreateAPIView):
         objects = User.objects.filter(pk__in=request.data["users"])
         serializer = UserSerializer(objects, many=True, context={'request': request})
         return Response(serializer.data)
+
+@method_decorator(ratelimit(key='user', rate='1/1s'), name="dispatch")
+class PasswordChangeView(generics.CreateAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = serializers.Serializer
+
+    def post(self, request, *args, **kwargs):
+        try:
+            if not request.user.is_authenticated:
+                return Response(status=status.HTTP_401_UNAUTHORIZED)
+            user = request.user
+            if not user.check_password(request.data["oldPassword"]):
+                return Response("Wrong password", status=status.HTTP_403_FORBIDDEN)
+            user.set_password(request.data["newPassword"])
+            user.save()
+            return Response(status=status.HTTP_200_OK)
+
+        except:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
 
 
 

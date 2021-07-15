@@ -2,20 +2,13 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework.generics import ListCreateAPIView, RetrieveAPIView
 from django.conf import settings
-from .views import debug_reset_database
-from .views import helloworld
+from .views import debug_reset_database, helloworld, send_a_mail
 from .models import Chart
 from .views import *
 from .serializers import *
 
-# from rest_framework_simplejwt.views import (
-#     TokenObtainPairView,
-#     TokenRefreshView,
-#     TokenVerifyView,
-# )
-
 from rest_framework_jwt.views import obtain_jwt_token, verify_jwt_token, refresh_jwt_token
-from rest_framework_jwt.blacklist.views import  BlacklistView
+from rest_framework_jwt.blacklist.views import BlacklistView
 
 
 urlpatterns = [
@@ -49,6 +42,7 @@ urlpatterns = [
     path('token/blacklist/', BlacklistView.as_view({"post": "create"}), name='token_blacklist'),
 
     path('user/me/', LoggedInUserView.as_view(), name='get_current_user'),
+    path('user/me/password/', PasswordChangeView.as_view(), name='change_password'),
     path('user/id/<pk>/', UserView.as_view(), name='get_user'),
     path('user/search/', UserSearchView.as_view(), name='search_user_by_name'),
     path('user/', MultiUserView.as_view(), name='get_users'),
@@ -57,3 +51,4 @@ urlpatterns = [
 if getattr(settings, "DEBUG", False):
     urlpatterns.append(path("debug_reset_database", debug_reset_database))
     urlpatterns.append(path("helloworld", helloworld))
+    urlpatterns.append(path("mail", send_a_mail))
