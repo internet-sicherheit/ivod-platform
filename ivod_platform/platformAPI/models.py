@@ -1,7 +1,17 @@
 from django.db import models
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import AbstractUser, Group
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+import uuid
+
+class User(AbstractUser):
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    email = models.EmailField(unique=True)
+    real_name = models.BooleanField(default=False)
+    public_profile = models.BooleanField(default=False)
+    #datasources_shared_with_user = models.ManyToManyField(Datasource)
+    #charts_shared_with_user = models.ManyToManyField(Chart)
 
 class ShareGroup(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="group_owner")
@@ -53,18 +63,3 @@ class Chart(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['owner','chart_name'],name='chart_unique_user_scope_path'),
         ]
-
-class EnhancedUser(models.Model):
-    #TODO: Better name
-    #TODO: Make auth_user private key
-
-    auth_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="additional_user_data")
-    real_name = models.BooleanField(default=False)
-    public_profile = models.BooleanField(default=False)
-    #datasources_shared_with_user = models.ManyToManyField(Datasource)
-    #charts_shared_with_user = models.ManyToManyField(Chart)
-
-    @receiver(post_save, sender=User)
-    def on_create_user(sender, **kwargs):
-        if 'created' in kwargs and kwargs['created']:
-            EnhancedUser.objects.create(auth_user=kwargs['instance'])

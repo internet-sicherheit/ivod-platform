@@ -200,41 +200,29 @@ class ShareGroupSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-class EnhancedUserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = EnhancedUser
-        fields = '__all__'
-
 class UserSerializer(serializers.ModelSerializer):
     first_name = serializers.SerializerMethodField('get_first_name')
     last_name = serializers.SerializerMethodField('get_last_name')
     public_profile = serializers.SerializerMethodField('get_public_profile')
     real_name = serializers.SerializerMethodField('get_real_name')
 
-    def get_additional_data(self, instance):
-        return instance.additional_user_data.all()[0]
-
     def get_first_name(self, instance):
-        additional_data = self.get_additional_data(instance)
-        if self.context['request'].user == instance or additional_data.real_name:
+        if self.context['request'].user == instance or instance.real_name:
             return instance.first_name
         else:
             return None
 
     def get_last_name(self, instance):
-        additional_data = self.get_additional_data(instance)
-        if self.context['request'].user == instance or additional_data.real_name:
+        if self.context['request'].user == instance or instance.real_name:
             return instance.last_name
         else:
             return None
 
     def get_public_profile(self, instance):
-        additional_data = self.get_additional_data(instance)
-        return additional_data.public_profile
+        return instance.public_profile
 
     def get_real_name(self, instance):
-        additional_data = self.get_additional_data(instance)
-        return additional_data.real_name
+        return instance.real_name
 
     class Meta:
         model = User

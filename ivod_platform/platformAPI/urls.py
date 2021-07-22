@@ -1,9 +1,4 @@
-from django.contrib import admin
-from django.urls import path, include
-from rest_framework.generics import ListCreateAPIView, RetrieveAPIView
-from django.conf import settings
-from .views import debug_reset_database, helloworld, send_a_mail
-from .models import Chart
+from django.urls import path
 from .views import *
 from .serializers import *
 
@@ -46,6 +41,9 @@ urlpatterns = [
     path('user/id/<pk>/', UserView.as_view(), name='get_user'),
     path('user/search/', UserSearchView.as_view(), name='search_user_by_name'),
     path('user/', MultiUserView.as_view(), name='get_users'),
+
+    path('password/reset/', CreatePasswordResetRequest.as_view(), name='iniate_password_reset'),
+    path('password/reset/<reset_id>/', ResetPassword.as_view(), name='iniate_password_reset'),
 ]
 
 if getattr(settings, "DEBUG", False):

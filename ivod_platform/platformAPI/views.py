@@ -2,20 +2,23 @@ from django.shortcuts import render, get_object_or_404, reverse, get_list_or_404
 from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseForbidden, FileResponse
 from django.utils.decorators import method_decorator
 from ratelimit.decorators import ratelimit
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import Group
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
+from django.conf import settings
 
-from .models import EnhancedUser, ShareGroup, Datasource, Chart
 from rest_framework import generics
 from .serializers import *
 from .permissions import *
 from .util import *
 from .tests import PlatformAPITestCase
+from .models import User
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import permissions
 from json import load, loads, dumps
+import threading
+from itsdangerous.url_safe import URLSafeTimedSerializer
 
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -23,9 +26,30 @@ from django.core.mail import send_mail, get_connection
 from datetime import datetime
 from django.core.mail.backends.smtp import EmailBackend
 
+
+def send_a_mail(request: HttpRequest):
+    try:
+        mails_send = send_mail(
+            subject="Django send_mail test",
+            message=str(datetime.utcnow()),
+            from_email="noreply@visquid.org",
+            recipient_list=["django_test@henkerservices.de"],
+            connection=EmailBackend(
+                host='localhost',
+                port=587,
+                use_tls=True,
+            )
+        )
+        return HttpResponse(str(mails_send), status=200)
+    except Exception as e:
+        print(e)
+        return HttpResponse(str(e), status=500)
+
+
 # Create your views here.
 def helloworld(request: HttpRequest) -> HttpResponse:
     return HttpResponse('Hello World')
+
 
 def debug_reset_database(request: HttpRequest) -> HttpResponse:
     """DEBUG VIEW. DONT USE IN PRODUCTION! Clears the database and creates some entries for testing purposes.
@@ -39,7 +63,7 @@ def debug_reset_database(request: HttpRequest) -> HttpResponse:
 
     # Should have been done through cascadation, just to be safe
     # Delete all admins and admin groups
-    for e_user in EnhancedUser.objects.all():
+    for e_user in User.objects.all():
         e_user.delete()
     for e_group in ShareGroup.objects.all():
         e_group.delete()
@@ -61,13 +85,14 @@ def debug_reset_database(request: HttpRequest) -> HttpResponse:
 
     return HttpResponse('')
 
+
 class DatasourceCreateListView(generics.ListCreateAPIView):
     """Add or list existing datasources, for which the caller has access rights"""
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = DatasourceSerializer
     queryset = Datasource.objects.all()
 
-    #FIXME: Upload limits?
+    # FIXME: Upload limits?
 
     def post(self, request, *args, **kwargs):
         serializer = DatasourceSerializer(data=request.data, context={'request': request})
@@ -75,18 +100,20 @@ class DatasourceCreateListView(generics.ListCreateAPIView):
         self.perform_create(serializer)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-
     def get(self, request, *args, **kwargs):
         queryset = self.get_queryset()
 
         # Only show datasources owned or shared with user
         owner_permission = IsDatasourceOwner()
         shared_permission = DatasourceIsSharedWithUser()
-        queryset = [obj for obj in queryset if owner_permission.has_object_permission(request, self, obj) or shared_permission.has_object_permission(request, self, obj)]
+        queryset = [obj for obj in queryset if owner_permission.has_object_permission(request, self,
+                                                                                      obj) or shared_permission.has_object_permission(
+            request, self, obj)]
 
         serializer = DatasourceSerializer(data=queryset, many=True)
         serializer.is_valid()
         return Response(serializer.data)
+
 
 class DatasourceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     """Modify or delete an existing datasource"""
@@ -131,13 +158,14 @@ class DatasourceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIVi
         current_object.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+
 class ChartCreateListView(generics.ListCreateAPIView):
     """Add or list existing charts, for which the caller has access rights"""
-    #permission_classes = [permissions.IsAuthenticated]
+    # permission_classes = [permissions.IsAuthenticated]
     serializer_class = ChartSerializer
     queryset = Chart.objects.all()
     filter_backends = [DjangoFilterBackend]
-    #filterset_fields = ['creation_time', 'modification_time', 'chart_type']
+    # filterset_fields = ['creation_time', 'modification_time', 'chart_type']
     filterset_fields = {
         'creation_time': ['gte', 'lte'],
         'modification_time': ['gte', 'lte'],
@@ -154,8 +182,8 @@ class ChartCreateListView(generics.ListCreateAPIView):
             return Response("Must be logged in to create charts", status=status.HTTP_403_FORBIDDEN)
         owner_permission = IsDatasourceOwner()
         shared_permission = DatasourceIsSharedWithUser()
-        if not(owner_permission.has_object_permission(request, self, datasource)
-               or shared_permission.has_object_permission(request, self, datasource)):
+        if not (owner_permission.has_object_permission(request, self, datasource)
+                or shared_permission.has_object_permission(request, self, datasource)):
             return Response("No such datasource or forbidden", status=status.HTTP_403_FORBIDDEN)
 
         serializer = ChartSerializer(data=request.data, context={'request': request})
@@ -179,6 +207,7 @@ class ChartCreateListView(generics.ListCreateAPIView):
         serializer = ChartSerializer(data=queryset, many=True, context={'request': request})
         serializer.is_valid()
         return Response(serializer.data)
+
 
 class ChartRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
     """Modify or delete an existing chart"""
@@ -209,7 +238,6 @@ class ChartRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
         self.perform_update(serializer)
         return Response(serializer.data)
 
-
     def delete(self, request, *args, **kwargs):
         current_object = self.get_object()
         if type(current_object) != Chart:
@@ -222,6 +250,7 @@ class ChartRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
 
         current_object.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class ChartDataView(generics.RetrieveAPIView):
     """Get processed data associated with a chart"""
@@ -243,6 +272,7 @@ class ChartDataView(generics.RetrieveAPIView):
             print(e, file=sys.stderr)
             return Response("Error retrieving data", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 class ChartConfigView(generics.RetrieveAPIView):
     """Get config associated with a chart"""
     permission_classes = [IsChartOwner | ChartIsShared & ChartIsSharedWithUser | ChartIsSemiPublic]
@@ -262,6 +292,7 @@ class ChartConfigView(generics.RetrieveAPIView):
         except Exception as e:
             print(e, file=sys.stderr)
             return Response("Error retrieving data", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class ChartCodeView(generics.RetrieveAPIView):
     """Get js code associated with a chart"""
@@ -295,6 +326,7 @@ class ChartCodeView(generics.RetrieveAPIView):
             print(e, file=sys.stderr)
             return Response("Error retrieving code", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 class ChartFileView(generics.RetrieveAPIView):
     """Get another file associated with a chart (e.g. shapefile for maps)"""
     permission_classes = [IsChartOwner | ChartIsShared & ChartIsSharedWithUser | ChartIsSemiPublic]
@@ -324,6 +356,7 @@ class ChartFileView(generics.RetrieveAPIView):
             print(e, file=sys.stderr)
             return Response("Error retrieving data", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 def get_code(request: HttpRequest, version, name) -> HttpResponse:
     """Get js code file specified by name and version"""
     filepath = Path(get_code_base_path()).resolve().joinpath(version).joinpath(name)
@@ -332,6 +365,7 @@ def get_code(request: HttpRequest, version, name) -> HttpResponse:
     else:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
+
 def get_common_code(request: HttpRequest, name) -> HttpResponse:
     """Get js code file specified by name and version"""
     filepath = Path(get_code_base_path()).resolve().joinpath(name)
@@ -339,6 +373,7 @@ def get_common_code(request: HttpRequest, name) -> HttpResponse:
         return FileResponse(filepath.open("rb"))
     else:
         return Response(status=status.HTTP_404_NOT_FOUND)
+
 
 class ShareGroupCreateListView(generics.ListCreateAPIView):
     """Add or list existing datasources, for which the caller has access rights"""
@@ -352,11 +387,10 @@ class ShareGroupCreateListView(generics.ListCreateAPIView):
         self.perform_create(serializer)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-
     def get(self, request, *args, **kwargs):
         queryset = self.get_queryset()
 
-        #FIXME:
+        # FIXME:
         # Only show if not hidden or user has access
         is_public_permission = IsGroupPublic()
         is_user_group_owner_permission = IsUserGroupOwner()
@@ -371,6 +405,7 @@ class ShareGroupCreateListView(generics.ListCreateAPIView):
         serializer = ShareGroupSerializer(data=queryset, many=True)
         serializer.is_valid()
         return Response(serializer.data)
+
 
 class ShareGroupRetrieveDestroyView(generics.RetrieveDestroyAPIView):
     serializer_class = ShareGroupSerializer
@@ -395,13 +430,13 @@ class ShareGroupRetrieveDestroyView(generics.RetrieveDestroyAPIView):
         current_object.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-class ShareGroupRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
 
+class ShareGroupRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ShareGroupSerializer
     queryset = ShareGroup.objects.all()
     permission_classes = [IsUserGroupOwner | IsUserGroupAdmin]
 
-    #FIXME: Validate inputs for correct types
+    # FIXME: Validate inputs for correct types
 
     def get_affected_users(self, fieldname, request):
         """Get user objects affected in this request"""
@@ -443,11 +478,11 @@ class ShareGroupRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView)
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()
 
-        new_members = self.get_affected_users("group_members",request)
+        new_members = self.get_affected_users("group_members", request)
         if type(new_members) == Response:
             # Getting affected users encountered an error, returned a response instead of a list User objects
             return new_members
-        new_admins = self.get_affected_users("group_admins",request)
+        new_admins = self.get_affected_users("group_admins", request)
         if type(new_admins) == Response:
             # Getting affected groups encountered an error, returned a response instead of a list Group objects
             return new_admins
@@ -457,6 +492,7 @@ class ShareGroupRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView)
         obj.group_admins.remove(*new_admins)
         # Return current shares
         return self.get(request, *args, **kwargs)
+
 
 class ShareView(generics.RetrieveUpdateDestroyAPIView):
     """ Read, update or delete shares on sharable objects"""
@@ -535,15 +571,18 @@ class ShareView(generics.RetrieveUpdateDestroyAPIView):
         # Return current shares
         return self.get(request, *args, **kwargs)
 
+
 class ChartShareView(ShareView):
     """ShareView for Charts"""
     permission_classes = [permissions.IsAuthenticated & IsChartOwner]
     queryset = Chart.objects.all()
 
+
 class DatasourceShareView(ShareView):
     """ShareView for Datasources"""
     permission_classes = [permissions.IsAuthenticated & IsDatasourceOwner]
     queryset = Datasource.objects.all()
+
 
 class ChartTypeView(generics.ListAPIView):
     """Get a list of supported chart types for a datasource"""
@@ -558,9 +597,10 @@ class ChartTypeView(generics.ListAPIView):
 
     def get(self, request, *args, **kwargs):
         datasource = self.get_object()
-        #TODO: Error handling (Source unreachable, pive error)
+        # TODO: Error handling (Source unreachable, pive error)
         supported = get_chart_types_for_datasource(datasource)
         return Response(supported)
+
 
 class LoggedInUserView(generics.RetrieveUpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -577,8 +617,9 @@ class LoggedInUserView(generics.RetrieveUpdateAPIView):
         self.perform_update(serializer)
         return Response(serializer.data)
 
+
 class UserView(generics.RetrieveAPIView):
-    #permission_classes = [permissions.IsAuthenticated] #TODO: Filtering for hidden profiles/ sensitive user info?
+    # permission_classes = [permissions.IsAuthenticated] #TODO: Filtering for hidden profiles/ sensitive user info?
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
@@ -587,31 +628,37 @@ class UserView(generics.RetrieveAPIView):
         self.check_object_permissions(self.request, obj)
         return obj
 
+
 class UserSearchView(generics.CreateAPIView):
-    #permission_classes = [permissions.IsAuthenticated] #TODO: Filtering for hidden profiles/ sensitive user info?
+    # permission_classes = [permissions.IsAuthenticated] #TODO: Filtering for hidden profiles/ sensitive user info?
     queryset = User.objects.all()
-    #serializer_class = UserSerializer
+
+    # serializer_class = UserSerializer
 
     def post(self, request, *args, **kwargs):
-        #FIXME: Workaround, moving to uuid will break this
+        # FIXME: Workaround, moving to uuid will break this
         try:
             id_query_input = int(request.data["name"])
         except:
             id_query_input = -1
-        search_filter = ( Q(id=id_query_input) #Q(id=request.data["name"]) #direct lookup, should always work
-                          | Q(additional_user_data__public_profile=True) #Otherwise only look for public profiles
-                            & ( Q(username__contains=request.data["name"]) # Searching by username should work even if real name is hidden
-                                  | (Q(additional_user_data__real_name=True) #Search by real name only when real name is publicly displayed
-                                     & ( Q(first_name__contains=request.data["name"]) | Q(last_name__contains=request.data["name"])))))
+        search_filter = (Q(id=id_query_input)  # Q(id=request.data["name"]) #direct lookup, should always work
+                         | Q(additional_user_data__public_profile=True)  # Otherwise only look for public profiles
+                         & (Q(username__contains=request.data[
+                    "name"])  # Searching by username should work even if real name is hidden
+                            | (
+                                    Q(additional_user_data__real_name=True)  # Search by real name only when real name is publicly displayed
+                                    & (Q(first_name__contains=request.data["name"]) | Q(
+                                    last_name__contains=request.data["name"])))))
         objects = User.objects.filter(search_filter)
         serializer = UserSerializer(objects, many=True, context={'request': request})
         return Response(serializer.data)
 
-class MultiUserView(generics.CreateAPIView):
-    #permission_classes = [permissions.IsAuthenticated] #TODO: Filtering for hidden profiles/ sensitive user info?
-    queryset = User.objects.all()
-    #serializer_class = UserSerializer
 
+class MultiUserView(generics.CreateAPIView):
+    # permission_classes = [permissions.IsAuthenticated] #TODO: Filtering for hidden profiles/ sensitive user info?
+    queryset = User.objects.all()
+
+    # serializer_class = UserSerializer
 
     def post(self, request, *args, **kwargs):
         objects = User.objects.filter(pk__in=request.data["users"])

@@ -71,7 +71,6 @@ INSTALLED_APPS = [
     #'django.contrib.staticfiles',
     'corsheaders',
     'platformAPI',
-    'platformFrontend',
     'rest_framework',
     'django_filters',
     'rest_framework_jwt',
@@ -156,6 +155,8 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+AUTHENTICATION_BACKENDS = ['platformAPI.backends.EmailAuthBackend']
+AUTH_USER_MODEL = "platformAPI.User"
 
 
 # Internationalization

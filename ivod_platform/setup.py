@@ -6,7 +6,7 @@ HARDCODED_PIVE_VERSION = '0.3.202106161145'
 
 setup(
     name='ivod-platform',
-    packages=['ivod_platform', 'platformAPI', 'platformFrontend'],
+    packages=['ivod_platform', 'platformAPI'],
     install_requires=['Django',
                       'djangorestframework',
                       'django-cors-headers',
@@ -14,6 +14,7 @@ setup(
                       'aiosmtpd',
                       #'djangorestframework-simplejwt',
                       'django-ratelimit',
+                      'itsdangerous',
                       'drf-jwt',
                       f'pive=={HARDCODED_PIVE_VERSION}',
                       ],
