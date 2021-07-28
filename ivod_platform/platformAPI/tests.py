@@ -1,6 +1,7 @@
 from rest_framework.test import APITestCase
 from django.shortcuts import reverse
 from .permissions import *
+from .models import User
 from pathlib import Path
 from shutil import rmtree
 from .util import generate_chart, get_chart_base_path, get_datasource_base_path, get_code_base_path, get_config_for_chart
@@ -21,7 +22,7 @@ class PlatformAPITestCase(APITestCase):
     def create_datasource(self, user, password, datasource_name, data):
         data = {'data': f'{b64encode(data).decode(encoding="utf-8")}', 'datasource_name': datasource_name}
         url = reverse("datasource-add")
-        self.assertTrue(self.client.login(username=user, password=password))
+        self.assertTrue(self.client.login(email=user, password=password))
         (SERVER_NAME, SERVER_PORT,PROTO) = self.get_server_address()
         response = self.client.post(url, data, format='json',  **{"SERVER_NAME": SERVER_NAME, "SERVER_PORT": SERVER_PORT, "wsgi.url_scheme": PROTO})
         self.client.logout()
@@ -39,7 +40,7 @@ class PlatformAPITestCase(APITestCase):
                 'datasource': datasource_id
                 }
         url = reverse("chart-add")
-        self.assertTrue(self.client.login(username=user, password=password))
+        self.assertTrue(self.client.login(email=user, password=password))
         (SERVER_NAME, SERVER_PORT, PROTO) = self.get_server_address()
         response = self.client.post(url, data, format='json', **{"SERVER_NAME": SERVER_NAME, "SERVER_PORT": SERVER_PORT, "wsgi.url_scheme": PROTO})
         self.client.logout()
@@ -55,7 +56,7 @@ class PlatformAPITestCase(APITestCase):
                 'group_members': members
                 }
         url = reverse("sharegroup-add")
-        self.assertTrue(self.client.login(username=user, password=password))
+        self.assertTrue(self.client.login(email=user, password=password))
         (SERVER_NAME, SERVER_PORT, PROTO) = self.get_server_address()
         response = self.client.post(url, data, format='json', **{"SERVER_NAME": SERVER_NAME, "SERVER_PORT": SERVER_PORT,
                                                                  "wsgi.url_scheme": PROTO})
@@ -67,16 +68,16 @@ class PlatformAPITestCase(APITestCase):
 
     def setUp(self):
         #TODO: Actually generate datasources and charts with the API endpoints
-        self.admin = User.objects.create_superuser(username="admin", email=None, password=getattr(settings, "ADMIN_PASS"))
-        self.user1 = User.objects.create_user(username="user1", email=None, password="00000000")
-        self.user2 = User.objects.create_user(username="user2", email=None, password="00000000")
+        self.admin = User.objects.create_superuser(email="admin@localhost", username="admin", password=getattr(settings, "ADMIN_PASS"))
+        self.user1 = User.objects.create_user(email="user1@localhost", username="user1", password="00000000")
+        self.user2 = User.objects.create_user(email="user2@localhost", username="user2", password="00000000")
         #Use user3 for a authenticated, but otherwise no permissions
-        self.user3 = User.objects.create_user(username="user3", email=None, password="00000000")
-        self.user4 = User.objects.create_user(username="user4", email=None, password="00000000")
+        self.user3 = User.objects.create_user(email="user3@localhost", username="user3", password="00000000")
+        self.user4 = User.objects.create_user(email="user4@localhost", username="user4", password="00000000")
 
 
-        self.group1 = self.create_group("user1", "00000000", "group1", public=False, admins=[self.user2.id], members=[self.user4.id])
-        self.group2 = self.create_group("user1", "00000000", "group2", public=False, admins=[], members=[])
+        self.group1 = self.create_group("user1@localhost", "00000000", "group1", public=False, admins=[self.user2.id], members=[self.user4.id])
+        self.group2 = self.create_group("user1@localhost", "00000000", "group2", public=False, admins=[], members=[])
 
         datasource_output_path = get_datasource_base_path()
         if datasource_output_path.exists():
@@ -85,24 +86,24 @@ class PlatformAPITestCase(APITestCase):
 
         datasource_base_path = Path(__file__).resolve().parent.joinpath("sample-data").joinpath("data").joinpath("metadata")
         with datasource_base_path.joinpath("simple_series.json").open("rb") as source_file:
-            self.datasource1 = self.create_datasource(self.user1.username, "00000000", "/file1", source_file.read())
+            self.datasource1 = self.create_datasource(self.user1.email, "00000000", "/file1", source_file.read())
         with datasource_base_path.joinpath("numerical.json").open("rb") as source_file:
-            self.datasource2 = self.create_datasource(self.user2.username, "00000000", "/file2", source_file.read())
+            self.datasource2 = self.create_datasource(self.user2.email, "00000000", "/file2", source_file.read())
 
         base_path = get_chart_base_path()
         if base_path.exists():
             rmtree(path=base_path)
         base_path.mkdir(exist_ok=True, parents=True)
 
-        self.chart1 = self.create_chart(self.user1.username, "00000000", "{}", True, Chart.VISIBILITY_PRIVATE, "/piechart1", "piechart", self.datasource1.id)
+        self.chart1 = self.create_chart(self.user1.email, "00000000", "{}", True, Chart.VISIBILITY_PRIVATE, "/piechart1", "piechart", self.datasource1.id)
 
-        self.chart2 = self.create_chart(self.user1.username, "00000000", "{}", False, Chart.VISIBILITY_SHARED,
+        self.chart2 = self.create_chart(self.user1.email, "00000000", "{}", False, Chart.VISIBILITY_SHARED,
                                         "/piechart2", "piechart", self.datasource1.id)
-        self.chart3 = self.create_chart(self.user2.username, "00000000", "{}", False, Chart.VISIBILITY_PRIVATE,
+        self.chart3 = self.create_chart(self.user2.email, "00000000", "{}", False, Chart.VISIBILITY_PRIVATE,
                                         "/linechart1", "linechart", self.datasource2.id)
-        self.chart4 = self.create_chart(self.user2.username, "00000000", "{}", True, Chart.VISIBILITY_PRIVATE,
+        self.chart4 = self.create_chart(self.user2.email, "00000000", "{}", True, Chart.VISIBILITY_PRIVATE,
                                         "/linechart2", "linechart", self.datasource2.id)
-        self.chart5 = self.create_chart(self.user2.username, "00000000", "{}", True, Chart.VISIBILITY_PUBLIC,
+        self.chart5 = self.create_chart(self.user2.email, "00000000", "{}", True, Chart.VISIBILITY_PUBLIC,
                                         "/linechart3", "linechart", self.datasource2.id)
 
         self.chart2.shared_users.add(self.user2)
@@ -117,7 +118,7 @@ class PlatformAPITestCase(APITestCase):
         data = {}
         url = reverse("datasource-add")
         response = self.client.get(url,data, format='json')
-        self.assertEquals(response.status_code, 401)
+        self.assertEquals(response.status_code, 403)
 
     def test_chart_list_unautenticated(self):
         # Access listing of charts unauthenticated -> Return all charts with Public Permission
@@ -133,7 +134,7 @@ class PlatformAPITestCase(APITestCase):
         # Access listing of datasources authenticated, but with none owned or shared -> Success, but empty response
         data = {}
         url = reverse("datasource-add")
-        self.client.login(username='user3', password='00000000')
+        self.client.login(email='user3@localhost', password='00000000')
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         response_obj = response.data
@@ -143,7 +144,7 @@ class PlatformAPITestCase(APITestCase):
         # Access listing of charts authenticated, but with none owned or shared directly -> Success, but show only public charts
         data = {}
         url = reverse("chart-add")
-        self.assertTrue(self.client.login(username='user3', password='00000000'))
+        self.assertTrue(self.client.login(email='user3@localhost', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         #There is 1 public chart in the database
@@ -154,7 +155,7 @@ class PlatformAPITestCase(APITestCase):
         # Access a chart directly by its key, without access rights -> Error 403
         data = {}
         url = reverse("chart-get", kwargs={'pk':self.chart1.id})
-        self.assertTrue(self.client.login(username='user3', password='00000000'))
+        self.assertTrue(self.client.login(email='user3@localhost', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
@@ -162,7 +163,7 @@ class PlatformAPITestCase(APITestCase):
         # Access a chart directly by its key, with it being shared -> Success
         data = {}
         url = reverse("chart-get", kwargs={'pk':self.chart2.id})
-        self.assertTrue(self.client.login(username='user2', password='00000000'))
+        self.assertTrue(self.client.login(email='user2@localhost', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data["chart_name"], "/piechart2")
@@ -171,7 +172,7 @@ class PlatformAPITestCase(APITestCase):
         # Access a chart directly by its key, with it being shared -> Success
         data = {}
         url = reverse("chart-get", kwargs={'pk':self.chart2.id})
-        self.assertTrue(self.client.login(username='user4', password='00000000'))
+        self.assertTrue(self.client.login(email='user4@localhost', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data["chart_name"], "/piechart2")
@@ -180,7 +181,7 @@ class PlatformAPITestCase(APITestCase):
         # Access a chart directly by its key, with it being owned -> Success
         data = {}
         url = reverse("chart-get", kwargs={'pk':self.chart2.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data["chart_name"], "/piechart2")
@@ -189,7 +190,7 @@ class PlatformAPITestCase(APITestCase):
         # Access a chart directly by its key, without access rights -> Error 403
         data = {}
         url = reverse("chart-data", kwargs={'pk': self.chart1.id})
-        self.assertTrue(self.client.login(username='user3', password='00000000'))
+        self.assertTrue(self.client.login(email='user3@localhost', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
@@ -197,7 +198,7 @@ class PlatformAPITestCase(APITestCase):
         # Access a chart directly by its key, with it being shared -> Success
         data = {}
         url = reverse("chart-data", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user2', password='00000000'))
+        self.assertTrue(self.client.login(email='user2@localhost', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         with get_chart_base_path().joinpath(str(self.chart2.id)).joinpath('data.json').open('r') as data_file:
@@ -209,7 +210,7 @@ class PlatformAPITestCase(APITestCase):
         # Access a chart directly by its key, with it being shared -> Success
         data = {}
         url = reverse("chart-data", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user4', password='00000000'))
+        self.assertTrue(self.client.login(email='user4@localhost', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         with get_chart_base_path().joinpath(str(self.chart2.id)).joinpath('data.json').open('r') as data_file:
@@ -221,7 +222,7 @@ class PlatformAPITestCase(APITestCase):
         # Access a chart directly by its key, with it being owned -> Success
         data = {}
         url = reverse("chart-data", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         with get_chart_base_path().joinpath(str(self.chart2.id)).joinpath('data.json').open('r') as data_file:
@@ -233,7 +234,7 @@ class PlatformAPITestCase(APITestCase):
         # Access a chart directly by its key, with it being owned -> Success
         data = {}
         url = reverse("chart-code", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
         response = self.client.get(url, data, format='json', follow=True)
         self.assertEquals(response.status_code, 200)
 
@@ -249,7 +250,7 @@ class PlatformAPITestCase(APITestCase):
         # Access a chart directly by its key, with it being owned -> Success
         data = {}
         url = reverse("chart-config", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
         response = self.client.get(url, data, format='json', follow=True)
         self.assertEquals(response.status_code, 200)
 
@@ -260,7 +261,7 @@ class PlatformAPITestCase(APITestCase):
         # Access a chart directly by its key, with it being owned -> Success
         data = {}
         url = reverse("chart-files", kwargs={'pk': self.chart2.id, 'filename': 'config.json'})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
         response = self.client.get(url, data, format='json', follow=True)
         self.assertEquals(response.status_code, 200)
 
@@ -271,7 +272,7 @@ class PlatformAPITestCase(APITestCase):
         # Access a chart directly by its key, with it being owned -> Success
         data = {}
         url = reverse("chart-files", kwargs={'pk': self.chart2.id, 'filename': 'persisted.json'})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
         response = self.client.get(url, data, format='json', follow=True)
         self.assertEquals(response.status_code, 404)
 
@@ -280,7 +281,7 @@ class PlatformAPITestCase(APITestCase):
         # Access a datasource directly by its key, without access rights -> Error 403
         data = {}
         url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
-        self.assertTrue(self.client.login(username='user3', password='00000000'))
+        self.assertTrue(self.client.login(email='user3@localhost', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
@@ -288,7 +289,7 @@ class PlatformAPITestCase(APITestCase):
         # Access a datasource directly by its key, with it being shared -> Success
         data = {}
         url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
-        self.assertTrue(self.client.login(username='user2', password='00000000'))
+        self.assertTrue(self.client.login(email='user2@localhost', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data["datasource_name"], "/file1")
@@ -297,7 +298,7 @@ class PlatformAPITestCase(APITestCase):
         # Access a datasource directly by its key, with it being shared -> Success
         data = {}
         url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
-        self.assertTrue(self.client.login(username='user4', password='00000000'))
+        self.assertTrue(self.client.login(email='user4@localhost', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data["datasource_name"], "/file1")
@@ -306,7 +307,7 @@ class PlatformAPITestCase(APITestCase):
         # Access a datasource directly by its key, with it being owned -> Success
         data = {}
         url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data["datasource_name"], "/file1")
@@ -315,7 +316,7 @@ class PlatformAPITestCase(APITestCase):
         # Change scope path on an owned datasource -> 200, scope path changed
         data = { 'datasource_name': '/test/datasource/edit/owned'}
         url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data["datasource_name"], '/test/datasource/edit/owned')
@@ -324,7 +325,7 @@ class PlatformAPITestCase(APITestCase):
         # Dont change scope path on an owned datasource -> 200, scope path unchanged
         data = {}
         url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data["datasource_name"], self.datasource1.datasource_name)
@@ -333,7 +334,7 @@ class PlatformAPITestCase(APITestCase):
         # Change not existing field on an owned datasource -> 200, field is ignored
         data = { 'NOT_ACTUALLY_A_FIELD' : 'NOT_ACTUALLY_DATA'}
         url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 200)
 
@@ -341,7 +342,7 @@ class PlatformAPITestCase(APITestCase):
         # Delete a chart directly by its key, with it being public -> Error 403
         data = {}
         url = reverse("chart-get", kwargs={'pk': self.chart5.id})
-        self.assertTrue(self.client.login(username='user3', password='00000000'))
+        self.assertTrue(self.client.login(email='user3@localhost', password='00000000'))
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
@@ -349,7 +350,7 @@ class PlatformAPITestCase(APITestCase):
         # Delete a chart directly by its key, with it being shared -> Error 403
         data = {}
         url = reverse("chart-get", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user2', password='00000000'))
+        self.assertTrue(self.client.login(email='user2@localhost', password='00000000'))
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
@@ -357,7 +358,7 @@ class PlatformAPITestCase(APITestCase):
         # Delete a chart directly by its key, with it being shared -> Error 403
         data = {}
         url = reverse("chart-get", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user4', password='00000000'))
+        self.assertTrue(self.client.login(email='user4@localhost', password='00000000'))
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
@@ -365,7 +366,7 @@ class PlatformAPITestCase(APITestCase):
         # Delete a chart directly by its key, with it being owned -> Success
         data = {}
         url = reverse("chart-get", kwargs={'pk': self.chart1.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 204)
 
@@ -373,7 +374,7 @@ class PlatformAPITestCase(APITestCase):
         # Delete a chart directly by its key, without access rights -> Error 403
         data = {}
         url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
-        self.assertTrue(self.client.login(username='user3', password='00000000'))
+        self.assertTrue(self.client.login(email='user3@localhost', password='00000000'))
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
@@ -381,7 +382,7 @@ class PlatformAPITestCase(APITestCase):
         # Delete a chart directly by its key, with it being shared -> Error 403
         data = {}
         url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
-        self.assertTrue(self.client.login(username='user2', password='00000000'))
+        self.assertTrue(self.client.login(email='user2@localhost', password='00000000'))
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
@@ -389,7 +390,7 @@ class PlatformAPITestCase(APITestCase):
         # Delete a chart directly by its key, with it being shared -> Error 403
         data = {}
         url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
-        self.assertTrue(self.client.login(username='user4', password='00000000'))
+        self.assertTrue(self.client.login(email='user4@localhost', password='00000000'))
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
@@ -397,7 +398,7 @@ class PlatformAPITestCase(APITestCase):
         # Delete a chart directly by its key, with it being owned -> Success
         data = {}
         url = reverse("datasource-get", kwargs={'pk': self.datasource1.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 204)
         url = reverse("chart-get", kwargs={'pk': self.chart1.id})
@@ -408,7 +409,7 @@ class PlatformAPITestCase(APITestCase):
         # Modify public chart in a legal way -> Error 403
         data = {'chart_name': '/new/scope'}
         url = reverse("chart-get", kwargs={'pk': self.chart5.id})
-        self.assertTrue(self.client.login(username='user3', password='00000000'))
+        self.assertTrue(self.client.login(email='user3@localhost', password='00000000'))
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
@@ -416,7 +417,7 @@ class PlatformAPITestCase(APITestCase):
         # Modify shared chart in a legal way -> Error 403
         data = {'chart_name': '/new/scope'}
         url = reverse("chart-get", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user2', password='00000000'))
+        self.assertTrue(self.client.login(email='user2@localhost', password='00000000'))
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
@@ -424,14 +425,14 @@ class PlatformAPITestCase(APITestCase):
         # Modify shared chart in a legal way -> Error 403
         data = {'chart_name': '/new/scope'}
         url = reverse("chart-get", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user4', password='00000000'))
+        self.assertTrue(self.client.login(email='user4@localhost', password='00000000'))
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
     def test_chart_edit_owned(self):
         # Modify owned chart in a legal way -> Success
         url = reverse("chart-get", kwargs={'pk': self.chart1.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
 
         data = {'chart_name': '/new/scope'}
         response = self.client.patch(url, data, format='json')
@@ -466,7 +467,7 @@ class PlatformAPITestCase(APITestCase):
         # Create a new datasource -> Datasource in Database
         data = {'url': 'https://google.com', 'datasource_name': '/test/create/datasource'}
         url = reverse("datasource-add")
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
         response = self.client.post(url, data, format='json')
         self.assertEquals(response.status_code, 201)
         datasource = Datasource.objects.get(id=response.data['id'])
@@ -482,7 +483,7 @@ class PlatformAPITestCase(APITestCase):
                 'datasource': self.datasource1.id
                 }
         url = reverse("chart-add")
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
         response = self.client.post(url, data, format='json')
         self.assertEquals(response.status_code, 201)
         chart = Chart.objects.get(id=response.data['id'])
@@ -498,7 +499,7 @@ class PlatformAPITestCase(APITestCase):
                 'datasource': self.datasource1.id
                 }
         url = reverse("chart-add")
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
         response = self.client.post(url, data, format='json')
         self.assertEquals(response.status_code, 400)
 
@@ -514,7 +515,7 @@ class PlatformAPITestCase(APITestCase):
                 'datasource': self.datasource2.id
                 }
         url = reverse("chart-add")
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
         response = self.client.post(url, data, format='json')
         self.assertEquals(response.status_code, 403)
 
@@ -522,7 +523,7 @@ class PlatformAPITestCase(APITestCase):
         # As the owner, share a chart with another user -> 200, new user is added
         data = {'users': [self.user3.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
 
         data_before = self.client.get(url, format='json')
         self.assertEquals(data_before.data['users'], [self.user2.id])
@@ -539,7 +540,7 @@ class PlatformAPITestCase(APITestCase):
         # As someone with the chart shared, share a chart with another user -> 403
         data = {'users': [self.user3.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user2', password='00000000'))
+        self.assertTrue(self.client.login(email='user2@localhost', password='00000000'))
 
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 403)
@@ -548,7 +549,7 @@ class PlatformAPITestCase(APITestCase):
         # As someone with the chart shared, share a chart with another user -> 403
         data = {'users': [self.user3.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user4', password='00000000'))
+        self.assertTrue(self.client.login(email='user4@localhost', password='00000000'))
 
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 403)
@@ -557,7 +558,7 @@ class PlatformAPITestCase(APITestCase):
         # As someone with the chart NOT shared, share a chart with another user -> 403
         data = {'users': [self.user3.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user3', password='00000000'))
+        self.assertTrue(self.client.login(email='user3@localhost', password='00000000'))
 
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 403)
@@ -566,7 +567,7 @@ class PlatformAPITestCase(APITestCase):
         # As the owner, unshare a chart with another user -> 200, user is not in shares anymore
         data = {'users': [self.user2.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
 
         data_before = self.client.get(url, format='json')
         self.assertEquals(data_before.data['users'], [self.user2.id])
@@ -581,7 +582,7 @@ class PlatformAPITestCase(APITestCase):
         # As someone with the chart shared, unshare a chart with another user -> 403
         data = {'users': [self.user2.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user2', password='00000000'))
+        self.assertTrue(self.client.login(email='user2@localhost', password='00000000'))
 
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 403)
@@ -590,7 +591,7 @@ class PlatformAPITestCase(APITestCase):
         # As someone with the chart shared, unshare a chart with another user -> 403
         data = {'users': [self.user2.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user4', password='00000000'))
+        self.assertTrue(self.client.login(email='user4@localhost', password='00000000'))
 
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 403)
@@ -599,7 +600,7 @@ class PlatformAPITestCase(APITestCase):
         # As someone with the chart NOT shared, unshare a chart with another user -> 403
         data = {'users': [self.user2.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user3', password='00000000'))
+        self.assertTrue(self.client.login(email='user3@localhost', password='00000000'))
 
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 403)
@@ -608,7 +609,7 @@ class PlatformAPITestCase(APITestCase):
         # Unshare a chart that wasnt actually shared -> 200, chart still not shared with user
         data = {'users': [self.user3.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
 
         data_before = self.client.get(url, format='json')
         self.assertEquals(data_before.data['users'], [self.user2.id])
@@ -624,7 +625,7 @@ class PlatformAPITestCase(APITestCase):
         # Share a chart that was already shared -> 200, chart shared with user
         data = {'users': [self.user2.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
 
         data_before = self.client.get(url, format='json')
         self.assertEquals(data_before.data['users'], [self.user2.id])
@@ -642,17 +643,17 @@ class PlatformAPITestCase(APITestCase):
         share_url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
         access_url = reverse("chart-get", kwargs={'pk': self.chart2.id})
 
-        self.assertTrue(self.client.login(username='user3', password='00000000'))
+        self.assertTrue(self.client.login(email='user3@localhost', password='00000000'))
         response = self.client.get(access_url, format='json')
         self.assertEquals(response.status_code, 403)
 
         self.client.logout()
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
         response = self.client.patch(share_url, data, format='json')
         self.assertEquals(response.status_code, 200)
         self.client.logout()
 
-        self.assertTrue(self.client.login(username='user3', password='00000000'))
+        self.assertTrue(self.client.login(email='user3@localhost', password='00000000'))
         response = self.client.get(access_url, format='json')
         self.assertEquals(response.status_code, 200)
 
@@ -660,7 +661,7 @@ class PlatformAPITestCase(APITestCase):
         # As the owner, share a chart with another user -> 200, new user is added
         data = {'groups': [self.group2.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
 
         data_before = self.client.get(url, format='json')
         self.assertEquals(data_before.data['groups'], [self.group1.id])
@@ -677,7 +678,7 @@ class PlatformAPITestCase(APITestCase):
         # As someone with the chart shared, share a chart with another group -> 403
         data = {'groups': [self.group2.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user2', password='00000000'))
+        self.assertTrue(self.client.login(email='user2@localhost', password='00000000'))
 
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 403)
@@ -686,7 +687,7 @@ class PlatformAPITestCase(APITestCase):
         # As someone with the chart shared, share a chart with another group -> 403
         data = {'groups': [self.group2.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user4', password='00000000'))
+        self.assertTrue(self.client.login(email='user4@localhost', password='00000000'))
 
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 403)
@@ -695,7 +696,7 @@ class PlatformAPITestCase(APITestCase):
         # As someone with the chart NOT shared, share a chart with another group -> 403
         data = {'groups': [self.group2.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user3', password='00000000'))
+        self.assertTrue(self.client.login(email='user3@localhost', password='00000000'))
 
         response = self.client.patch(url, data, format='json')
         self.assertEquals(response.status_code, 403)
@@ -704,7 +705,7 @@ class PlatformAPITestCase(APITestCase):
         # As the owner, unshare a chart with another group -> 200, group is not in shares anymore
         data = {'groups': [self.group1.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
 
         data_before = self.client.get(url, format='json')
         self.assertEquals(data_before.data['groups'], [self.group1.id])
@@ -719,7 +720,7 @@ class PlatformAPITestCase(APITestCase):
         # As someone with the chart shared, unshare a chart with another group -> 403
         data = {'groups': [self.group2.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user2', password='00000000'))
+        self.assertTrue(self.client.login(email='user2@localhost', password='00000000'))
 
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 403)
@@ -728,7 +729,7 @@ class PlatformAPITestCase(APITestCase):
         # As someone with the chart shared, unshare a chart with another group -> 403
         data = {'groups': [self.group2.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user4', password='00000000'))
+        self.assertTrue(self.client.login(email='user4@localhost', password='00000000'))
 
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 403)
@@ -737,7 +738,7 @@ class PlatformAPITestCase(APITestCase):
         # As someone with the chart NOT shared, unshare a chart with another group -> 403
         data = {'groups': [self.group2.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user3', password='00000000'))
+        self.assertTrue(self.client.login(email='user3@localhost', password='00000000'))
 
         response = self.client.delete(url, data, format='json')
         self.assertEquals(response.status_code, 403)
@@ -746,7 +747,7 @@ class PlatformAPITestCase(APITestCase):
         # Unshare a chart that wasnt actually shared -> 200, chart still not shared with user
         data = {'groups': [self.group2.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
 
         data_before = self.client.get(url, format='json')
         self.assertEquals(data_before.data['groups'], [self.group1.id])
@@ -762,7 +763,7 @@ class PlatformAPITestCase(APITestCase):
         # Share a chart that was already shared -> 200, chart shared with group
         data = {'groups': [self.group1.id]}
         url = reverse("chart-shared", kwargs={'pk': self.chart2.id})
-        self.assertTrue(self.client.login(username='user1', password='00000000'))
+        self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
 
         data_before = self.client.get(url, format='json')
         self.assertEquals(data_before.data['groups'], [self.group1.id])
@@ -780,7 +781,7 @@ class PlatformAPITestCase(APITestCase):
                 }
         url = reverse("sharegroup-add")
         response = self.client.post(url, data, format='json')
-        self.assertEquals(response.status_code, 401)
+        self.assertEquals(response.status_code, 403)
 
     def test_create_new_group_with_members(self):
         data = {'name': 'test_create_new_group_with_members',
@@ -789,7 +790,7 @@ class PlatformAPITestCase(APITestCase):
                 'group_members': [self.user1.id, self.user2.id, self.user3.id]
                 }
         url = reverse("sharegroup-add")
-        self.assertTrue(self.client.login(username=self.user1.username, password="00000000"))
+        self.assertTrue(self.client.login(email=self.user1.email, password="00000000"))
         response = self.client.post(url, data, format='json')
         self.client.logout()
         self.assertEquals(response.status_code, 201)
@@ -810,7 +811,7 @@ class PlatformAPITestCase(APITestCase):
                 'group_members': [self.user1.id, self.user2.id, self.user3.id]
                 }
         url = reverse("sharegroup-add")
-        self.assertTrue(self.client.login(username=self.user1.username, password="00000000"))
+        self.assertTrue(self.client.login(email=self.user1.email, password="00000000"))
         response = self.client.post(url, data, format='json')
         self.assertEquals(response.status_code, 201)
 
@@ -836,7 +837,7 @@ class PlatformAPITestCase(APITestCase):
                 'group_members': [self.user1.id, self.user2.id, self.user3.id]
                 }
         url = reverse("sharegroup-add")
-        self.assertTrue(self.client.login(username=self.user4.username, password="00000000"))
+        self.assertTrue(self.client.login(email=self.user4.email, password="00000000"))
         response = self.client.post(url, data, format='json')
         self.assertEquals(response.status_code, 201)
 
@@ -862,7 +863,7 @@ class PlatformAPITestCase(APITestCase):
                 'group_members': [self.user1.id, self.user2.id, self.user3.id]
                 }
         url = reverse("sharegroup-add")
-        self.assertTrue(self.client.login(username=self.user1.username, password="00000000"))
+        self.assertTrue(self.client.login(email=self.user1.email, password="00000000"))
         response = self.client.post(url, data, format='json')
         self.assertEquals(response.status_code, 201)
 
@@ -870,7 +871,7 @@ class PlatformAPITestCase(APITestCase):
             'group_members': [self.user2.id]
         }
         url = reverse("sharegroup-properties", kwargs={'pk': response.data['id']})
-        self.assertTrue(self.client.login(username=self.user3.username, password="00000000"))
+        self.assertTrue(self.client.login(email=self.user3.email, password="00000000"))
         after = self.client.delete(url, data, format='json')
         self.assertEquals(after.status_code, 403)
         group = ShareGroup.objects.get(id=response.data['id'])
@@ -891,7 +892,7 @@ class PlatformAPITestCase(APITestCase):
             data['group_admins'] = [user.id for user in inserted_users]
         url = reverse("sharegroup-properties", kwargs={'pk': group.id})
         if inserting_user:
-            self.assertTrue(self.client.login(username=inserting_user.username, password='00000000'))
+            self.assertTrue(self.client.login(email=inserting_user.email, password='00000000'))
         before_state = self.client.get(url, format='json')
         after_state = self.client.patch(url, data, format='json')
         if inserting_user:
@@ -973,7 +974,7 @@ class PlatformAPITestCase(APITestCase):
     def test_add_user_to_group_members_as_anonymous(self):
         before_state, after_state = self.add_user_to_group(None, [self.user3], self.group1, True, False)
 
-        self.assertEquals(after_state.status_code, 401)
+        self.assertEquals(after_state.status_code, 403)
         group = ShareGroup.objects.get(id=self.group1.id)
         self.assertNotIn(self.user3.id, group.group_members.all())
         self.assertNotIn(self.user3.id, group.group_admins.all())
@@ -981,7 +982,7 @@ class PlatformAPITestCase(APITestCase):
     def test_add_user_to_group_admins_as_anonymous(self):
         before_state, after_state = self.add_user_to_group(None, [self.user3], self.group1, False, True)
 
-        self.assertEquals(after_state.status_code, 401)
+        self.assertEquals(after_state.status_code, 403)
         group = ShareGroup.objects.get(id=self.group1.id)
         self.assertNotIn(self.user3.id, group.group_members.all())
         self.assertNotIn(self.user3.id, group.group_admins.all())
