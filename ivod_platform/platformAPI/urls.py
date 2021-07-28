@@ -43,7 +43,7 @@ urlpatterns = [
     path('user/', MultiUserView.as_view(), name='get_users'),
 
     path('password/reset/', CreatePasswordResetRequest.as_view(), name='iniate_password_reset'),
-    path('password/reset/<reset_id>/', ResetPassword.as_view(), name='iniate_password_reset'),
+    path('password/reset/<reset_id>/', ResetPassword.as_view(), name='do_password_reset'),
 ]
 
 if getattr(settings, "DEBUG", False):
