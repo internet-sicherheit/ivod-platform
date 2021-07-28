@@ -6,6 +6,10 @@ import sys
 import os
 from django.conf import settings
 
+from django.core.mail import send_mail, get_connection
+from datetime import datetime
+from django.core.mail.backends.smtp import EmailBackend
+
 def get_chart_types_for_datasource(datasource):
     """Create a list of supported chart types for a datasource
     :param Datasource datasource: The datasource, for which the chart types should be generated
@@ -117,3 +121,19 @@ def get_config_for_chart(chart):
     with get_chart_base_path().joinpath(str(chart.id)).joinpath('config.json').open('r') as file:
         config = json.load(file)
         return config
+
+def send_a_mail(receiver, subject, content):
+    try:
+        return 1 == send_mail(
+            subject=subject,
+            message=content,
+            from_email="noreply@visquid.org", #TODO: Get Mail from settings
+            recipient_list=[receiver],
+            connection=EmailBackend( #Move Backend config to settings
+                host='localhost',
+                port=587,
+                use_tls=True,
+            )
+        )
+    except Exception as e:
+        return False

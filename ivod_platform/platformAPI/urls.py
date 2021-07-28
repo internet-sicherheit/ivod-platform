@@ -49,4 +49,3 @@ urlpatterns = [
 if getattr(settings, "DEBUG", False):
     urlpatterns.append(path("debug_reset_database", debug_reset_database))
     urlpatterns.append(path("helloworld", helloworld))
-    urlpatterns.append(path("mail", send_a_mail))

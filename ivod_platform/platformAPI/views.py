@@ -22,29 +22,6 @@ from itsdangerous.url_safe import URLSafeTimedSerializer
 
 from django.core.exceptions import ObjectDoesNotExist
 
-from django.core.mail import send_mail, get_connection
-from datetime import datetime
-from django.core.mail.backends.smtp import EmailBackend
-
-
-def send_a_mail(request: HttpRequest):
-    try:
-        mails_send = send_mail(
-            subject="Django send_mail test",
-            message=str(datetime.utcnow()),
-            from_email="noreply@visquid.org",
-            recipient_list=["django_test@henkerservices.de"],
-            connection=EmailBackend(
-                host='localhost',
-                port=587,
-                use_tls=True,
-            )
-        )
-        return HttpResponse(str(mails_send), status=200)
-    except Exception as e:
-        print(e)
-        return HttpResponse(str(e), status=500)
-
 
 # Create your views here.
 def helloworld(request: HttpRequest) -> HttpResponse:
@@ -664,6 +641,56 @@ class MultiUserView(generics.CreateAPIView):
         objects = User.objects.filter(pk__in=request.data["users"])
         serializer = UserSerializer(objects, many=True, context={'request': request})
         return Response(serializer.data)
+
+@method_decorator(ratelimit(key='ip', rate='1/s'), name="dispatch")
+class CreatePasswordResetRequest(generics.CreateAPIView):
+    serializer_class = serializers.Serializer
+
+    def post(self, request, *args, **kwargs):
+
+        def passwordResetProcessing(email):
+            try:
+                user = User.objects.get(email=email)
+                # reset_object = PasswordReset.objects.create(user=user, ttl=datetime.timedelta(hours=1))
+                # reset_object.save()
+                user_id_serializer = URLSafeTimedSerializer(settings["SECRET_KEY"])
+                serialized_id = user_id_serializer.dumps(user.id)
+                # TODO: Get password reset page link from setting
+                # TODO: Build path to reset endpoint from request
+                # FIXME: Send Mail with link and code
+            except User.DoesNotExist:
+                pass
+            except Exception as e:
+                print(type(e))
+                print(e)
+
+        if "email" in request.data:
+            request.data["email"]
+            t = threading.Thread(target=passwordResetProcessing, args=(request.data["email"],), kwargs={})
+            t.setDaemon(True)
+            t.start()
+            return Response(status=status.HTTP_200_OK)
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+@method_decorator(ratelimit(key='ip', rate='1/s'), name="dispatch")
+class ResetPassword(generics.CreateAPIView):
+    serializer_class = serializers.Serializer
+
+    def post(self, request, *args, **kwargs):
+        try:
+            token = self.kwargs["reset_id"]
+            #TODO: Check if token is still valid
+            if not "password" in request.data:
+                raise ValueError("Missing new password")
+            if type(request.data["password"]) != str:
+                raise ValueError("Password must be a string")
+            #TODO: Set password
+        except Exception as e:
+            print(type(e))
+            print(e)
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
 
 @method_decorator(ratelimit(key='user', rate='1/1s'), name="dispatch")
 class PasswordChangeView(generics.CreateAPIView):
