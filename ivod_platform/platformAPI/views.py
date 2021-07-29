@@ -1,7 +1,6 @@
 from django.shortcuts import render, get_object_or_404, reverse, get_list_or_404
 from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseForbidden, FileResponse
 from django.utils.decorators import method_decorator
-from itsdangerous import SignatureExpired
 from ratelimit.decorators import ratelimit
 from django.contrib.auth.models import Group
 from django_filters.rest_framework import DjangoFilterBackend
@@ -19,8 +18,8 @@ from rest_framework.response import Response
 from rest_framework import permissions
 from json import load, loads, dumps
 import threading
-from itsdangerous.url_safe import URLSafeTimedSerializer
 
+from django.core import signing
 from django.core.exceptions import ObjectDoesNotExist
 
 
@@ -653,8 +652,7 @@ class CreatePasswordResetRequest(generics.CreateAPIView):
             try:
                 #TODO: Check if this
                 user = User.objects.get(email=email)
-                user_id_serializer = URLSafeTimedSerializer(getattr(settings, "SECRET_KEY"))
-                serialized_id = user_id_serializer.dumps(user.id.hex)
+                serialized_id = signing.dumps(user.id.hex)
                 target = request.build_absolute_uri(reverse("do_password_reset", kwargs={'reset_id': serialized_id}))
                 #TODO: Build mail from template.
                 #TODO: Simple password reset page (maybe as GET against the reset endpoint with
@@ -676,6 +674,7 @@ class CreatePasswordResetRequest(generics.CreateAPIView):
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
+
 @method_decorator(ratelimit(key='ip', rate='1/s'), name="dispatch")
 class ResetPassword(generics.CreateAPIView):
     serializer_class = serializers.Serializer
@@ -683,8 +682,7 @@ class ResetPassword(generics.CreateAPIView):
     def post(self, request, *args, **kwargs):
         try:
             token = self.kwargs["reset_id"]
-            user_id_serializer = URLSafeTimedSerializer(getattr(settings, "SECRET_KEY"))
-            user_id = user_id_serializer.loads(token, max_age=15*60) # 15 minute timeout
+            user_id = signing.loads(token, max_age=15) # 15 minute timeout
             if not "password" in request.data:
                 raise ValueError("Missing new password")
             if type(request.data["password"]) != str:
@@ -692,7 +690,7 @@ class ResetPassword(generics.CreateAPIView):
             user = User.objects.get(id=user_id)
             user.set_password(request.data["password"])
             return Response(status=status.HTTP_200_OK)
-        except SignatureExpired as e:
+        except signing.SignatureExpired as e:
             #TODO: Inform about timeout
             return Response(status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
