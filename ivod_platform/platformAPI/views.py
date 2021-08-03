@@ -1,5 +1,7 @@
 from django.shortcuts import render, get_object_or_404, reverse, get_list_or_404
 from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseForbidden, FileResponse
+from django.template.loader import get_template, render_to_string
+from django.template.response import SimpleTemplateResponse
 from django.utils.decorators import method_decorator
 from ratelimit.decorators import ratelimit
 from django.contrib.auth.models import Group
@@ -654,11 +656,33 @@ class CreatePasswordResetRequest(generics.CreateAPIView):
                 user = User.objects.get(email=email)
                 serialized_id = signing.dumps(user.id.hex)
                 target = request.build_absolute_uri(reverse("do_password_reset", kwargs={'reset_id': serialized_id}))
-                #TODO: Build mail from template.
-                #TODO: Simple password reset page (maybe as GET against the reset endpoint with
+
+                reset_url = getattr(settings, "PASSWORD_RESET_URL", None)
+                if reset_url is None:
+                    reset_url = request.build_absolute_uri(reverse("do_password_reset", kwargs={'reset_id': serialized_id}))
+                else:
+                    #Append token as parameter
+                    reset_url += f"?reset_id={serialized_id}"
+
+                context = {
+                    "reset_id": serialized_id,
+                    "title": "Password Reset",
+                    "reset_url" : reset_url
+                }
+
+                text_content = render_to_string('platformAPI/mail_reset_text.jinja2', context=context, request=request)
+                html_content = render_to_string('platformAPI/mail_reset_html.jinja2', context=context, request=request)
+                #Dont send alternative on
+                if text_content == "":
+                    text_content = None
+                if html_content == "":
+                    html_content = None
+                if text_content is None and html_content is None:
+                    #TODO: ValueError is too broad, use appropriate exception type instead
+                    raise ValueError("Only empty templates where loaded")
                 # Currently a user would need to manually make a post request against the link in the mail
                 print(target)
-                send_a_mail(email, "Password Reset", target)
+                send_a_mail(email, context["title"], content=text_content, html_content=html_content)
             except User.DoesNotExist:
                 pass
             except Exception as e:
@@ -676,8 +700,12 @@ class CreatePasswordResetRequest(generics.CreateAPIView):
 
 
 @method_decorator(ratelimit(key='ip', rate='1/s'), name="dispatch")
-class ResetPassword(generics.CreateAPIView):
+class ResetPassword(generics.ListCreateAPIView):
     serializer_class = serializers.Serializer
+
+    def get(self, request, *args, **kwargs):
+        return SimpleTemplateResponse(get_template("platformAPI/default_password_reset_page.jinja2"),
+                                      context={"reset_url": "_self", "reset_id": self.kwargs["reset_id"]}, status=200)
 
     def post(self, request, *args, **kwargs):
         try:
@@ -689,6 +717,7 @@ class ResetPassword(generics.CreateAPIView):
                 raise ValueError("Password must be a string")
             user = User.objects.get(id=user_id)
             user.set_password(request.data["password"])
+            #TODO: Invalidate spent tokens in DB
             return Response(status=status.HTTP_200_OK)
         except signing.SignatureExpired as e:
             #TODO: Inform about timeout

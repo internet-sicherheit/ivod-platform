@@ -111,7 +111,7 @@ ROOT_URLCONF = 'ivod_platform.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [Path(BASE_DIR).resolve().joinpath('platformFrontend').joinpath('templates')],
+        'DIRS': [Path(BASE_DIR).resolve().joinpath('platformAPI').joinpath('templates'), Path(BASE_DIR).resolve().joinpath('platformFrontend').joinpath('templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -187,6 +187,8 @@ CHART_BASE_PATH = str(BASE_DIR.joinpath("chart_data"))
 DATASOURCE_BASE_PATH = str(BASE_DIR.joinpath("datasources"))
 JS_BASE_PATH = str(BASE_DIR.joinpath("code"))
 #CHART_TEMPLATE = "/Path/To/Template/File"
+
+PASSWORD_RESET_URL = os.environ.get("PASSWORD_RESET_PATH", None)
 
 
 #CORS Config

@@ -122,13 +122,14 @@ def get_config_for_chart(chart):
         config = json.load(file)
         return config
 
-def send_a_mail(receiver, subject, content):
+def send_a_mail(receiver, subject, content, html_content=None):
     try:
         return 1 == send_mail(
             subject=subject,
             message=content,
             from_email="noreply@visquid.org", #TODO: Get Mail from settings
             recipient_list=[receiver],
+            html_message=html_content,
             connection=EmailBackend( #Move Backend config to settings
                 host='localhost',
                 port=587,
