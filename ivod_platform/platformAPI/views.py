@@ -654,7 +654,7 @@ class CreatePasswordResetRequest(generics.CreateAPIView):
             try:
                 #TODO: Check if this
                 user = User.objects.get(email=email)
-                serialized_id = signing.dumps(user.id.hex)
+                serialized_id = signing.dumps({'user':user.id.hex, 'token_type':"PASSWORD_RESET"})
                 target = request.build_absolute_uri(reverse("do_password_reset", kwargs={'reset_id': serialized_id}))
 
                 reset_url = getattr(settings, "PASSWORD_RESET_URL", None)
@@ -667,12 +667,12 @@ class CreatePasswordResetRequest(generics.CreateAPIView):
                 context = {
                     "reset_id": serialized_id,
                     "title": "Password Reset",
-                    "reset_url" : reset_url
+                    "reset_url": reset_url
                 }
 
                 text_content = render_to_string('platformAPI/mail_reset_text.jinja2', context=context, request=request)
                 html_content = render_to_string('platformAPI/mail_reset_html.jinja2', context=context, request=request)
-                #Dont send alternative on
+                #Dont send alternative when its an empty string
                 if text_content == "":
                     text_content = None
                 if html_content == "":
@@ -700,7 +700,7 @@ class CreatePasswordResetRequest(generics.CreateAPIView):
 
 
 @method_decorator(ratelimit(key='ip', rate='1/s'), name="dispatch")
-class ResetPassword(generics.ListCreateAPIView):
+class ResetPasswordView(generics.ListCreateAPIView):
     serializer_class = serializers.Serializer
 
     def get(self, request, *args, **kwargs):
@@ -710,7 +710,11 @@ class ResetPassword(generics.ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         try:
             token = self.kwargs["reset_id"]
-            user_id = signing.loads(token, max_age=15) # 15 minute timeout
+            loadedObject = signing.loads(token, max_age=15*60) # 15 minute timeout
+            if "token_type" not in loadedObject or loadedObject["token_type"] != "PASSWORD_RESET":
+                # Wrong token
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+            user_id = loadedObject["user_id"]
             if not "password" in request.data:
                 raise ValueError("Missing new password")
             if type(request.data["password"]) != str:
@@ -726,6 +730,51 @@ class ResetPassword(generics.ListCreateAPIView):
             print(type(e))
             print(e)
             return Response(status=status.HTTP_400_BAD_REQUEST)
+
+@method_decorator(ratelimit(key='ip', rate='1/s'), name="dispatch")
+class ChangeMailView(generics.CreateAPIView):
+    serializer_class = serializers.Serializer
+
+    def post(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        try:
+            user = request.user
+            if not user.check_password(request.data["password"]):
+                return Response("Wrong password", status=status.HTTP_403_FORBIDDEN)
+            serialized_id = signing.dumps({'user': user.id.hex, 'token_type': "EMAIL_CHANGE", 'email': request.data["newEmail"]})
+            #TODO: Build Email from template
+            context = {
+                'title': 'Verify your mail address',
+                'token': serialized_id,
+                'confirmation_url':  request.build_absolute_uri(reverse("confirm_email", kwargs={'token': serialized_id}))
+            }
+            text_content = render_to_string('platformAPI/mail_change_text.jinja2', context=context, request=request)
+            html_content = render_to_string('platformAPI/mail_change_html.jinja2', context=context, request=request)
+            send_a_mail(
+                request.data["newEmail"], context['title'], text_content, html_content=html_content)
+            return Response(status=status.HTTP_200_OK)
+        except Exception as e:
+            print(type(e))
+            print(e)
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+@method_decorator(ratelimit(key='ip', rate='1/s'), name="dispatch")
+class ConfirmMailView(generics.RetrieveAPIView):
+    serializer_class = serializers.Serializer
+
+    def get(self, request, *args, **kwargs):
+        # TODO:
+        loadedObject = signing.loads(kwargs["token"], max_age=15*60) # 15 minute timeout
+        if "token_type" not in loadedObject or loadedObject["token_type"] != "EMAIL_CHANGE":
+            # Wrong token
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        user = User.objects.get(id=loadedObject["user"])
+        #TODO: Make sure email is not already in use. Are DB constraints enough? Error Handling
+        user.email = loadedObject["email"]
+        user.save()
+        return Response("Email confirmed", status=status.HTTP_200_OK)
+
 
 
 @method_decorator(ratelimit(key='user', rate='1/1s'), name="dispatch")
