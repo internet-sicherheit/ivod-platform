@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from django.shortcuts import render, get_object_or_404, reverse, get_list_or_404
 from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseForbidden, FileResponse
 from django.template.loader import get_template, render_to_string
@@ -616,18 +618,27 @@ class UserSearchView(generics.CreateAPIView):
 
     def post(self, request, *args, **kwargs):
         # FIXME: Workaround, moving to uuid will break this
-        try:
-            id_query_input = int(request.data["name"])
-        except:
-            id_query_input = -1
-        search_filter = (Q(id=id_query_input)  # Q(id=request.data["name"]) #direct lookup, should always work
-                         | Q(additional_user_data__public_profile=True)  # Otherwise only look for public profiles
-                         & (Q(username__contains=request.data[
-                    "name"])  # Searching by username should work even if real name is hidden
+
+        def build_uuid_filter(id_query_input):
+            try:
+                _ = UUID(uuid)
+                return Q(id=id_query_input)  # Q(id=request.data["name"]) #direct lookup, should always work
+            except Exception as e:
+                return Q()
+
+
+        # try:
+        #     id_query_input = int(request.data["name"])
+        # except:
+        #     id_query_input = ""
+        search_filter = (build_uuid_filter(request.data["name"])  # Q(id=request.data["name"]) #direct lookup, should always work
+                         | Q(public_profile=True)  # Otherwise only look for public profiles
+                         & (Q(username__contains=request.data["name"])  # Searching by username should work even if real name is hidden
                             | (
-                                    Q(additional_user_data__real_name=True)  # Search by real name only when real name is publicly displayed
-                                    & (Q(first_name__contains=request.data["name"]) | Q(
-                                    last_name__contains=request.data["name"])))))
+                                    Q(real_name=True)  # Search by real name only when real name is publicly displayed
+                                    & (
+                                            Q(first_name__contains=request.data["name"])
+                                            | Q(last_name__contains=request.data["name"])))))
         objects = User.objects.filter(search_filter)
         serializer = UserSerializer(objects, many=True, context={'request': request})
         return Response(serializer.data)
