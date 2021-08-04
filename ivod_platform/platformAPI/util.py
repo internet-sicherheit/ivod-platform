@@ -1,4 +1,6 @@
+from django.core.signing import Signer
 from django.urls import reverse
+from django.utils import baseconv
 from pive import environment, inputmanager, outputmanager
 from pathlib import Path
 import json
@@ -138,3 +140,14 @@ def send_a_mail(receiver, subject, content, html_content=None):
         )
     except Exception as e:
         return False
+
+def get_timestamp_from_token(token):
+    # Functionality should be the same as django.core.signing.TimestampSigner
+    try:
+        signer = Signer()
+        result = signer.unsign(token)
+        return baseconv.base62.decode(
+            result.rsplit(signer.sep, 1)[1]
+        )
+    except:
+        return None
