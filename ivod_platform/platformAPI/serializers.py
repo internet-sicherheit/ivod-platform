@@ -195,8 +195,8 @@ class ShareGroupSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         instance.is_public = validated_data.get('is_public', instance.is_public)
-        instance.group_admins = validated_data.get('group_admins', instance.group_admins)
-        instance.group_members = validated_data.get('group_members', instance.group_members)
+        # instance.group_admins = validated_data.get('group_admins', instance.group_admins)
+        # instance.group_members = validated_data.get('group_members', instance.group_members)
         instance.save()
         return instance
 

@@ -331,12 +331,22 @@
 ## sharegroup-get
 
 - url: groups/\<pk\>
-- Description: Retrieve or delete a sharegroup
-- methods: [GET, DELETE]
+- Description: Retrieve, update or delete a sharegroup
+- methods: [GET, PATCH, DELETE]
 - GET:
     - Returns:
         - Format: JSON
         - Type: [ShareGroup]
+        - Code: 200
+- POST:
+    - Parameters:
+        - 'is_public':
+            - Description: Privacy setting of new sharegroup
+            - Type: boolean
+            - Default: false
+    - Returns:
+        - Format: JSON
+        - Type: ShareGroup
         - Code: 200
 - POST:
     - Returns:

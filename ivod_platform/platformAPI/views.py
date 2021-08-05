@@ -389,7 +389,7 @@ class ShareGroupCreateListView(generics.ListCreateAPIView):
         return Response(serializer.data)
 
 
-class ShareGroupRetrieveDestroyView(generics.RetrieveDestroyAPIView):
+class ShareGroupRetrieveDestroyView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ShareGroupSerializer
     queryset = ShareGroup.objects.all()
     permission_classes = [IsGroupPublic | IsUserGroupOwner | IsUserGroupAdmin | IsUserGroupMember]
@@ -398,6 +398,20 @@ class ShareGroupRetrieveDestroyView(generics.RetrieveDestroyAPIView):
         obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
         self.check_object_permissions(self.request, obj)
         return obj
+
+    def patch(self, request, *args, **kwargs):
+        sharegroup = self.get_object()
+        # Need elevated permission to
+        if not (
+                IsUserGroupOwner().has_object_permission(request, self, sharegroup)
+                or IsUserGroupAdmin().has_object_permission(request, self, sharegroup)
+        ):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        serializer = self.serializer_class(sharegroup, data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
 
     def delete(self, request, *args, **kwargs):
         current_object = self.get_object()
@@ -423,6 +437,7 @@ class ShareGroupRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView)
     def get_affected_users(self, fieldname, request):
         """Get user objects affected in this request"""
         affected_users = []
+        # TODO: Instead of iterating this could be done with User.objects.filter(pk__in=request.data.get(fieldname, [])), but without the error response
         for pk in request.data.get(fieldname, []):
             try:
                 affected_users.append(User.objects.get(pk=pk))
