@@ -31,7 +31,7 @@ urlpatterns = [
     # path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     # path('token/verify/', TokenVerifyView.as_view(), name='token_verify'),
 
-    path('token/',  obtain_jwt_token),
+    path('token/',  obtain_jwt_token, name='token_obtain'),
     path('token/refresh/', refresh_jwt_token, name='token_refresh'),
     path('token/verify/', verify_jwt_token, name='token_verify'),
     path('token/blacklist/', BlacklistView.as_view({"post": "create"}), name='token_blacklist'),
@@ -44,7 +44,7 @@ urlpatterns = [
     path('user/', MultiUserView.as_view(), name='get_users'),
 
     path('password/reset/', CreatePasswordResetRequest.as_view(), name='iniate_password_reset'),
-    path('password/reset/<reset_id>/', ResetPasswordView.as_view(), name='do_password_reset'),
+    path('password/reset/<token>/', ResetPasswordView.as_view(), name='do_password_reset'),
     path('email/confirm/<token>/', ConfirmMailView.as_view(), name='confirm_email'),
 
 ]

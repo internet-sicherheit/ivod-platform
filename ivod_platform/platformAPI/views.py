@@ -593,12 +593,11 @@ class LoggedInUserView(generics.RetrieveUpdateAPIView):
         serializer = UserSerializer(request.user, many=False, context={'request': request})
         return Response(serializer.data)
 
-    def put(self, request, *args, **kwargs):
+    def patch(self, request, *args, **kwargs):
         serializer = UserSerializer(request.user, data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return Response(serializer.data)
-
 
 class UserView(generics.RetrieveAPIView):
     # permission_classes = [permissions.IsAuthenticated] #TODO: Filtering for hidden profiles/ sensitive user info?
@@ -611,13 +610,12 @@ class UserView(generics.RetrieveAPIView):
         return obj
 
 
-class UserSearchView(generics.CreateAPIView):
+class UserSearchView(generics.RetrieveAPIView):
     # permission_classes = [permissions.IsAuthenticated] #TODO: Filtering for hidden profiles/ sensitive user info?
     queryset = User.objects.all()
 
-    # serializer_class = UserSerializer
 
-    def post(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
 
         def build_uuid_filter(id_query_input):
             # Check if input is a uuid. If input is not a uuid the whole lookup will fail with a ValidationError
@@ -726,9 +724,9 @@ class ResetPasswordView(generics.ListCreateAPIView):
 
     def post(self, request, *args, **kwargs):
         try:
-            token = self.kwargs["reset_id"]
+            token = self.kwargs["token"]
             # Load data from token and check expiration
-            loadedObject = signing.loads(kwargs["token"], max_age=15 * 60)  # 15 minute timeout
+            loadedObject = signing.loads(token, max_age=15 * 60)  # 15 minute timeout
             # Check if token type is a password reset token and not another signed by this server
             if "token_type" not in loadedObject or loadedObject["token_type"] != "PASSWORD_RESET":
                 # Wrong token
@@ -817,6 +815,7 @@ class ConfirmMailView(generics.RetrieveAPIView):
             # Update databse entries
             user.email = loadedObject["email"]
             user.save()
+            #TODO: Redirect to success/failure pages
             return Response("Email confirmed", status=status.HTTP_200_OK)
         except signing.SignatureExpired as e:
             # Token expired
