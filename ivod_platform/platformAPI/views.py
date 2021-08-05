@@ -617,6 +617,7 @@ class UserSearchView(generics.RetrieveAPIView):
 
     def get(self, request, *args, **kwargs):
 
+        name = request.query_params["name"]
         def build_uuid_filter(id_query_input):
             # Check if input is a uuid. If input is not a uuid the whole lookup will fail with a ValidationError
             try:
@@ -626,16 +627,14 @@ class UserSearchView(generics.RetrieveAPIView):
                 # Empty query filter
                 return Q()
 
-        search_filter = (build_uuid_filter(
-            request.data["name"])  # Q(id=request.data["name"]) #direct lookup, should always work
+        search_filter = (build_uuid_filter(name)  # Q(id=request.data["name"]) #direct lookup, should always work
                          | Q(public_profile=True)  # Otherwise only look for public profiles
-                         & (Q(username__contains=request.data[
-                    "name"])  # Searching by username should work even if real name is hidden
+                         & (Q(username__contains=name)  # Searching by username should work even if real name is hidden
                             | (
                                     Q(real_name=True)  # Search by real name only when real name is publicly displayed
                                     & (
-                                            Q(first_name__contains=request.data["name"])
-                                            | Q(last_name__contains=request.data["name"])))))
+                                            Q(first_name__contains=name)
+                                            | Q(last_name__contains=name)))))
         objects = User.objects.filter(search_filter)
         serializer = UserSerializer(objects, many=True, context={'request': request})
         return Response(serializer.data)
