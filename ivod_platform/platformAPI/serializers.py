@@ -265,7 +265,9 @@ class UserSerializer(serializers.ModelSerializer):
         instance.first_name = validated_data.get('first_name', instance.first_name)
         instance.last_name = validated_data.get('last_name', instance.last_name)
         instance.username = validated_data.get('username', instance.username)
+
         instance.public_profile = validated_data.get('public_profile', instance.public_profile)
         instance.real_name = validated_data.get('real_name', instance.public_profile)
+
         instance.save()
         return instance

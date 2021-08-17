@@ -9,7 +9,7 @@ from django.utils.decorators import method_decorator
 from ratelimit.decorators import ratelimit
 from django.contrib.auth.models import Group
 from django_filters.rest_framework import DjangoFilterBackend
-
+from django.db.models import Q
 from django.conf import settings
 
 from rest_framework import generics
@@ -614,6 +614,7 @@ class LoggedInUserView(generics.RetrieveUpdateAPIView):
         self.perform_update(serializer)
         return Response(serializer.data)
 
+  
 class UserView(generics.RetrieveAPIView):
     # permission_classes = [permissions.IsAuthenticated] #TODO: Filtering for hidden profiles/ sensitive user info?
     queryset = User.objects.all()

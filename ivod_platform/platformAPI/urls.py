@@ -46,7 +46,6 @@ urlpatterns = [
     path('password/reset/', CreatePasswordResetRequest.as_view(), name='iniate_password_reset'),
     path('password/reset/<token>/', ResetPasswordView.as_view(), name='do_password_reset'),
     path('email/confirm/<token>/', ConfirmMailView.as_view(), name='confirm_email'),
-
 ]
 
 if getattr(settings, "DEBUG", False):
