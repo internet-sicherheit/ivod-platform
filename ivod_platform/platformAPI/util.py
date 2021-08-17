@@ -1,4 +1,6 @@
+from django.core.signing import Signer
 from django.urls import reverse
+from django.utils import baseconv
 from pive import environment, inputmanager, outputmanager
 from pathlib import Path
 import json
@@ -122,13 +124,14 @@ def get_config_for_chart(chart):
         config = json.load(file)
         return config
 
-def send_a_mail(receiver, subject, content):
+def send_a_mail(receiver, subject, content, html_content=None):
     try:
         return 1 == send_mail(
             subject=subject,
             message=content,
             from_email="noreply@visquid.org", #TODO: Get Mail from settings
             recipient_list=[receiver],
+            html_message=html_content,
             connection=EmailBackend( #Move Backend config to settings
                 host='localhost',
                 port=587,
@@ -137,3 +140,14 @@ def send_a_mail(receiver, subject, content):
         )
     except Exception as e:
         return False
+
+def get_timestamp_from_token(token):
+    # Functionality should be the same as django.core.signing.TimestampSigner
+    try:
+        signer = Signer()
+        result = signer.unsign(token)
+        return baseconv.base62.decode(
+            result.rsplit(signer.sep, 1)[1]
+        )
+    except:
+        return None

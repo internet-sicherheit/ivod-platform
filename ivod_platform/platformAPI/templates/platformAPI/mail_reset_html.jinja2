@@ -1,0 +1,19 @@
+<html>
+<head>
+<title>
+    {{ title }}
+</title>
+</head>
+<body>
+    <h1> Password reset</h1></br>
+    <p> A password reset for the account with this mail was requested.
+
+        IF THIS WAS NOT YOU, SOMEONE MIGHT TRY TO GAIN ACCESS TO YOUR ACCOUNT!
+        DONT PROVIDE YOUR PASSWORD AND DONT FOLLOW ANY LINKS!
+
+        If you want to reset your password follow this link:
+
+        <a href="{{ reset_url }}"> {{ reset_url }} </a>
+    </p>
+</body>
+</html>

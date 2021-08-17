@@ -1,5 +1,10 @@
+from uuid import UUID
+
 from django.shortcuts import render, get_object_or_404, reverse, get_list_or_404
 from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseForbidden, FileResponse
+from django.template import Engine
+from django.template.loader import get_template, render_to_string
+from django.template.response import SimpleTemplateResponse
 from django.utils.decorators import method_decorator
 from ratelimit.decorators import ratelimit
 from django.contrib.auth.models import Group
@@ -18,8 +23,8 @@ from rest_framework.response import Response
 from rest_framework import permissions
 from json import load, loads, dumps
 import threading
-from itsdangerous.url_safe import URLSafeTimedSerializer
 
+from django.core import signing
 from django.core.exceptions import ObjectDoesNotExist
 
 
@@ -384,7 +389,7 @@ class ShareGroupCreateListView(generics.ListCreateAPIView):
         return Response(serializer.data)
 
 
-class ShareGroupRetrieveDestroyView(generics.RetrieveDestroyAPIView):
+class ShareGroupRetrieveDestroyView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ShareGroupSerializer
     queryset = ShareGroup.objects.all()
     permission_classes = [IsGroupPublic | IsUserGroupOwner | IsUserGroupAdmin | IsUserGroupMember]
@@ -393,6 +398,20 @@ class ShareGroupRetrieveDestroyView(generics.RetrieveDestroyAPIView):
         obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
         self.check_object_permissions(self.request, obj)
         return obj
+
+    def patch(self, request, *args, **kwargs):
+        sharegroup = self.get_object()
+        # Need elevated permission to
+        if not (
+                IsUserGroupOwner().has_object_permission(request, self, sharegroup)
+                or IsUserGroupAdmin().has_object_permission(request, self, sharegroup)
+        ):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        serializer = self.serializer_class(sharegroup, data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
 
     def delete(self, request, *args, **kwargs):
         current_object = self.get_object()
@@ -418,6 +437,7 @@ class ShareGroupRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView)
     def get_affected_users(self, fieldname, request):
         """Get user objects affected in this request"""
         affected_users = []
+        # TODO: Instead of iterating this could be done with User.objects.filter(pk__in=request.data.get(fieldname, [])), but without the error response
         for pk in request.data.get(fieldname, []):
             try:
                 affected_users.append(User.objects.get(pk=pk))
@@ -588,13 +608,13 @@ class LoggedInUserView(generics.RetrieveUpdateAPIView):
         serializer = UserSerializer(request.user, many=False, context={'request': request})
         return Response(serializer.data)
 
-    def put(self, request, *args, **kwargs):
+    def patch(self, request, *args, **kwargs):
         serializer = UserSerializer(request.user, data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return Response(serializer.data)
 
-
+  
 class UserView(generics.RetrieveAPIView):
     # permission_classes = [permissions.IsAuthenticated] #TODO: Filtering for hidden profiles/ sensitive user info?
     queryset = User.objects.all()
@@ -606,26 +626,31 @@ class UserView(generics.RetrieveAPIView):
         return obj
 
 
-class UserSearchView(generics.CreateAPIView):
+class UserSearchView(generics.RetrieveAPIView):
     # permission_classes = [permissions.IsAuthenticated] #TODO: Filtering for hidden profiles/ sensitive user info?
     queryset = User.objects.all()
 
-    # serializer_class = UserSerializer
 
-    def post(self, request, *args, **kwargs):
-        # FIXME: Workaround, moving to uuid will break this
-        try:
-            id_query_input = int(request.data["name"])
-        except:
-            id_query_input = -1
-        search_filter = (Q(id=id_query_input)  # Q(id=request.data["name"]) #direct lookup, should always work
-                         | Q(additional_user_data__public_profile=True)  # Otherwise only look for public profiles
-                         & (Q(username__contains=request.data[
-                    "name"])  # Searching by username should work even if real name is hidden
+    def get(self, request, *args, **kwargs):
+
+        name = request.query_params["name"]
+        def build_uuid_filter(id_query_input):
+            # Check if input is a uuid. If input is not a uuid the whole lookup will fail with a ValidationError
+            try:
+                _ = UUID(uuid)
+                return Q(id=id_query_input)  # Q(id=request.data["name"]) #direct lookup, should always work
+            except Exception as e:
+                # Empty query filter
+                return Q()
+
+        search_filter = (build_uuid_filter(name)  # Q(id=request.data["name"]) #direct lookup, should always work
+                         | Q(public_profile=True)  # Otherwise only look for public profiles
+                         & (Q(username__contains=name)  # Searching by username should work even if real name is hidden
                             | (
-                                    Q(additional_user_data__real_name=True)  # Search by real name only when real name is publicly displayed
-                                    & (Q(first_name__contains=request.data["name"]) | Q(
-                                    last_name__contains=request.data["name"])))))
+                                    Q(real_name=True)  # Search by real name only when real name is publicly displayed
+                                    & (
+                                            Q(first_name__contains=name)
+                                            | Q(last_name__contains=name)))))
         objects = User.objects.filter(search_filter)
         serializer = UserSerializer(objects, many=True, context={'request': request})
         return Response(serializer.data)
@@ -642,6 +667,7 @@ class MultiUserView(generics.CreateAPIView):
         serializer = UserSerializer(objects, many=True, context={'request': request})
         return Response(serializer.data)
 
+
 @method_decorator(ratelimit(key='ip', rate='1/s'), name="dispatch")
 class CreatePasswordResetRequest(generics.CreateAPIView):
     serializer_class = serializers.Serializer
@@ -650,22 +676,50 @@ class CreatePasswordResetRequest(generics.CreateAPIView):
 
         def passwordResetProcessing(email):
             try:
+                # Get user with this email, if they exist. If they dont exist, there is nothing to do
                 user = User.objects.get(email=email)
-                # reset_object = PasswordReset.objects.create(user=user, ttl=datetime.timedelta(hours=1))
-                # reset_object.save()
-                user_id_serializer = URLSafeTimedSerializer(settings["SECRET_KEY"])
-                serialized_id = user_id_serializer.dumps(user.id)
-                # TODO: Get password reset page link from setting
-                # TODO: Build path to reset endpoint from request
-                # FIXME: Send Mail with link and code
+                serialized_id = signing.dumps({'user': user.id.hex, 'token_type': "PASSWORD_RESET"})
+                target = request.build_absolute_uri(reverse("do_password_reset", kwargs={'reset_id': serialized_id}))
+
+                # Get the URL that lets users reset their e-mail from the settings
+                reset_url = getattr(settings, "PASSWORD_RESET_URL", None)
+                if reset_url is None:
+                    # if no URL is set in the settings, take default reset endpoint
+                    reset_url = target
+                else:
+                    # Render token into the url
+                    reset_url = render_to_string(Engine.get_default().from_string(reset_url),
+                                                 context={'token': serialized_id, 'target': target}, request=request)
+
+                # Build a reset mail from templates
+                context = {
+                    "reset_id": serialized_id,
+                    "title": "Password Reset",
+                    "reset_url": reset_url
+                }
+                text_content = render_to_string('platformAPI/mail_reset_text.jinja2', context=context, request=request)
+                html_content = render_to_string('platformAPI/mail_reset_html.jinja2', context=context, request=request)
+                # Dont send alternative when its an empty string
+                if text_content == "":
+                    text_content = None
+                if html_content == "":
+                    html_content = None
+
+                # At least one message type must be specified
+                if text_content is None and html_content is None:
+                    # TODO: ValueError is too broad, use appropriate exception type instead
+                    raise ValueError("Only empty templates where loaded")
+                send_a_mail(email, context["title"], content=text_content, html_content=html_content)
             except User.DoesNotExist:
                 pass
             except Exception as e:
+                # Another error
+                # TODO: Remove after debugging
                 print(type(e))
                 print(e)
 
         if "email" in request.data:
-            request.data["email"]
+            # Run in thread to avoid runtime oracle
             t = threading.Thread(target=passwordResetProcessing, args=(request.data["email"],), kwargs={})
             t.setDaemon(True)
             t.start()
@@ -673,20 +727,117 @@ class CreatePasswordResetRequest(generics.CreateAPIView):
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
+
 @method_decorator(ratelimit(key='ip', rate='1/s'), name="dispatch")
-class ResetPassword(generics.CreateAPIView):
+class ResetPasswordView(generics.ListCreateAPIView):
     serializer_class = serializers.Serializer
+
+    def get(self, request, *args, **kwargs):
+        # Simple password reset form. Replace the platformAPI/default_password_reset_page.jinja2 template to create your own form or change PASSWORD_RESET_URL to point to your frontend
+        return SimpleTemplateResponse(get_template("platformAPI/default_password_reset_page.jinja2"),
+                                      context={"reset_url": "_self", "reset_id": self.kwargs["reset_id"]}, status=200)
 
     def post(self, request, *args, **kwargs):
         try:
-            token = self.kwargs["reset_id"]
-            #TODO: Check if token is still valid
+            token = self.kwargs["token"]
+            # Load data from token and check expiration
+            loadedObject = signing.loads(token, max_age=15 * 60)  # 15 minute timeout
+            # Check if token type is a password reset token and not another signed by this server
+            if "token_type" not in loadedObject or loadedObject["token_type"] != "PASSWORD_RESET":
+                # Wrong token
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+            user_id = loadedObject["user_id"]
+            # Verify password is a string
             if not "password" in request.data:
                 raise ValueError("Missing new password")
             if type(request.data["password"]) != str:
                 raise ValueError("Password must be a string")
-            #TODO: Set password
+            #TODO: Verify password guidelines
+
+            # User is most likely not logged in when requesting a password change request, use user specified in token
+            user = User.objects.get(id=user_id)
+            # Change password in database
+            user.set_password(request.data["password"])
+            # TODO: Invalidate spent tokens in DB
+            return Response(status=status.HTTP_200_OK)
+        except signing.SignatureExpired as e:
+            # Token expired
+            return Response("Request expired!", status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            # Another error
+            # TODO: Remove after debugging
+            print(type(e))
+            print(e)
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+@method_decorator(ratelimit(key='ip', rate='1/s'), name="dispatch")
+class ChangeMailView(generics.CreateAPIView):
+    serializer_class = serializers.Serializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        # Create a request to change the users e-mail
+
+        try:
+            user = request.user
+            # Verify users password again to make sure the request comes from the user and not someone hijacking the session
+            if not user.check_password(request.data["password"]):
+                return Response("Wrong password", status=status.HTTP_403_FORBIDDEN)
+
+            # Create a token for user with specified new e-mail
+            serialized_id = signing.dumps(
+                {'user': user.id.hex, 'token_type': "EMAIL_CHANGE", 'email': request.data["newEmail"]})
+
+            # Build a verification mail from templates
+            context = {
+                'title': 'Verify your mail address',
+                'token': serialized_id,
+                'confirmation_url': request.build_absolute_uri(
+                    reverse("confirm_email", kwargs={'token': serialized_id}))
+            }
+            text_content = render_to_string('platformAPI/mail_change_text.jinja2', context=context, request=request)
+            html_content = render_to_string('platformAPI/mail_change_html.jinja2', context=context, request=request)
+
+            # Send the mail to the new mail address
+            send_a_mail(
+                request.data["newEmail"], context['title'], text_content, html_content=html_content)
+            return Response(status=status.HTTP_200_OK)
+        except Exception as e:
+            # Another error
+            # TODO: Remove after debugging
+            print(type(e))
+            print(e)
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+@method_decorator(ratelimit(key='ip', rate='1/s'), name="dispatch")
+class ConfirmMailView(generics.RetrieveAPIView):
+    serializer_class = serializers.Serializer
+    # User doesnt need to be logged in, all required information and authorisation is provided by posessing the token
+
+    def get(self, request, *args, **kwargs):
+        try:
+            # Load data from token and check expiration
+            loadedObject = signing.loads(kwargs["token"], max_age=15 * 60)  # 15 minute timeout
+            # Check if token type is an e-mail change token and not another signed by this server
+            if "token_type" not in loadedObject or loadedObject["token_type"] != "EMAIL_CHANGE":
+                # Wrong token
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+            # User might not be logged in on the device the mail arrives, use user specified in token
+            user = User.objects.get(id=loadedObject["user"])
+            # TODO: Make sure email is not already in use. Are DB constraints enough? Error Handling
+            # Update databse entries
+            user.email = loadedObject["email"]
+            user.save()
+            #TODO: Redirect to success/failure pages
+            return Response("Email confirmed", status=status.HTTP_200_OK)
+        except signing.SignatureExpired as e:
+            # Token expired
+            return Response("Request expired!", status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            # Another error
+            # TODO: Remove after debugging
             print(type(e))
             print(e)
             return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -699,18 +850,15 @@ class PasswordChangeView(generics.CreateAPIView):
 
     def post(self, request, *args, **kwargs):
         try:
-            if not request.user.is_authenticated:
-                return Response(status=status.HTTP_401_UNAUTHORIZED)
             user = request.user
+            # Verify users password again to make sure the request comes from the user and not someone hijacking the session
             if not user.check_password(request.data["oldPassword"]):
                 return Response("Wrong password", status=status.HTTP_403_FORBIDDEN)
+            # TODO: Verify password guidelines
+            # Change password in database
             user.set_password(request.data["newPassword"])
             user.save()
             return Response(status=status.HTTP_200_OK)
 
         except:
             return Response(status=status.HTTP_400_BAD_REQUEST)
-
-
-
-

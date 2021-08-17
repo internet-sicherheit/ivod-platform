@@ -14,7 +14,6 @@ setup(
                       'aiosmtpd',
                       #'djangorestframework-simplejwt',
                       'django-ratelimit',
-                      'itsdangerous',
                       'drf-jwt',
                       f'pive=={HARDCODED_PIVE_VERSION}',
                       ],
