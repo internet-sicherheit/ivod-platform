@@ -11,46 +11,20 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 
 from pathlib import Path
-from random import getrandbits
-from base64 import b64encode
 import os
 from sys import stderr
 import datetime
-
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-
+import importlib.util
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
-
+# SECURITY WARNING: don't run with debug turned on in production!
 # SECURITY WARNING: keep the secret key used in production secret!
 DEBUG = (os.environ.get('DEBUG', 'False').upper() == 'TRUE')
-
 SECRET_KEY = os.environ.get('SECRET_KEY')
 ADMIN_PASS = os.environ.get('ADMIN_PASS')
-
-if not SECRET_KEY:
-    if DEBUG:
-        SECRET_KEY = 'NOT_SAFE_FOR_PRODUCTION'
-        print(f'----------------\nWARNING: No secret key set.\nTHIS WILL FAIL WITHOUT DEBUG!\nSecret key defaulted to {SECRET_KEY}\n----------------', file=stderr)
-    else:
-        raise ValueError("No secret key set. Use environment variable SECRET_KEY!")
-
-if not ADMIN_PASS:
-    if DEBUG:
-        ADMIN_PASS = 'NOT_SAFE_FOR_PRODUCTION'
-        print(
-            f'----------------\nWARNING: No admin password set.\nTHIS WILL FAIL WITHOUT DEBUG!\nAdmin password defaulted to {SECRET_KEY}\n----------------',
-            file=stderr)
-    else:
-        raise ValueError("No admin password set. Use environment variable ADMIN_PASS!")
-
-
-
-# SECURITY WARNING: don't run with debug turned on in production!
 
 
 if 'ALLOWED_HOSTS' in os.environ:
@@ -196,5 +170,38 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost').split(',')
 
 USE_X_FORWARDED_HOST = True
-USE_X_FORWARDED_PORT =True
+USE_X_FORWARDED_PORT = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
+
+if 'CUSTOM_SETTING_PATH' in os.environ and Path(os.environ.get('CUSTOM_SETTING_PATH')).exists():
+    #Import custom settings into namespace
+    spec = importlib.util.spec_from_file_location("costume_settings_module.settings", os.environ.get('CUSTOM_SETTING_PATH'))
+    foo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(foo)
+    globals().update({ key:foo.__dict__[key] for key in foo.__dict__.keys() if not key.startswith("_")})
+
+
+# Verification steps
+# Check if all required values are set
+# If DEBUG=True unset values may be overridden by defaults.
+# If a value is overridden, a warning should be printed to stderr
+# Otherwise an error must be raised
+
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'NOT_SAFE_FOR_PRODUCTION'
+        print(f'----------------\nWARNING: No secret key set.\nTHIS WILL FAIL WITHOUT DEBUG!\nSecret key defaulted to {SECRET_KEY}\n----------------', file=stderr)
+    else:
+        raise ValueError("No secret key set. Use environment variable SECRET_KEY!")
+
+if not ADMIN_PASS:
+    if DEBUG:
+        ADMIN_PASS = 'NOT_SAFE_FOR_PRODUCTION'
+        print(
+            f'----------------\nWARNING: No admin password set.\nTHIS WILL FAIL WITHOUT DEBUG!\nAdmin password defaulted to {SECRET_KEY}\n----------------',
+            file=stderr)
+    else:
+        raise ValueError("No admin password set. Use environment variable ADMIN_PASS!")
