@@ -251,12 +251,12 @@ class UserSerializer(serializers.ModelSerializer):
         if 'username' not in data:
             raise ValueError("Username required")
         if 'password' not in data:
-            raise ValueError("Passwort required")
+            raise ValueError("Password required")
         return data
 
     def create(self, validated_data):
         validated_data = self.validate_create(validated_data)
-        user = User.objects.create_user(username=validated_data['username'], password=validated_data['username'], email=validated_data.get('email'))
+        user = User.objects.create_user(username=validated_data['username'], password=validated_data['password'], email=validated_data.get('email'))
         user.first_name = validated_data.get('first_name', "")
         user.last_name = validated_data.get('last_name', "")
         return user
