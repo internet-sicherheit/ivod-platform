@@ -77,6 +77,8 @@ REST_FRAMEWORK = {
 JWT_AUTH = {
     'JWT_AUTH_COOKIE': "JWT-Cookie",
     'JWT_EXPIRATION_DELTA': datetime.timedelta(hours=1),
+    'JWT_REFRESH_EXPIRATION_DELTA': datetime.timedelta(days=7),
+    'JWT_DELETE_STALE_BLACKLISTED_TOKENS': True
 }
 
 ROOT_URLCONF = 'ivod_platform.urls'
@@ -174,6 +176,8 @@ USE_X_FORWARDED_PORT = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
+DATA_ALLOW_UNORDERED = False
 
 
 if 'CUSTOM_SETTING_PATH' in os.environ and Path(os.environ.get('CUSTOM_SETTING_PATH')).exists():

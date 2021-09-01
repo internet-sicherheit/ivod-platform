@@ -19,7 +19,7 @@ def get_chart_types_for_datasource(datasource):
     :rtype: [str]
     """
 
-    manager = inputmanager.InputManager(mergedata=False)
+    manager = inputmanager.InputManager(mergedata=False, accept_unordered=getattr(settings, "DATA_ALLOW_UNORDERED", False))
     env = environment.Environment(inputmanager=manager)
     supported = env.load(datasource.source)
     return supported
@@ -57,7 +57,7 @@ def generate_chart(datasource, chart_id, chart_type, request, config=None):
     base_path.mkdir(parents=True, exist_ok=True)
     output_path = base_path.joinpath(str(chart_id))
 
-    manager = inputmanager.InputManager(mergedata=False)
+    manager = inputmanager.InputManager(mergedata=False, accept_unordered=getattr(settings, "DATA_ALLOW_UNORDERED", False))
     env = environment.Environment(inputmanager=manager, outputmanager=outputmanager.FolderOutputManager(output_path))
     supported = env.load(datasource.source)
     if chart_type not in supported:
@@ -80,7 +80,7 @@ def modify_chart(chart_id, request, config=None):
     persisted_data_path = output_path.joinpath("persisted.json")
     with Path(persisted_data_path).open("r") as persisted_data_file:
         persisted_data = json.load(persisted_data_file)
-    manager = inputmanager.InputManager(mergedata=False)
+    manager = inputmanager.InputManager(mergedata=False, accept_unordered=getattr(settings, "DATA_ALLOW_UNORDERED", False))
     env = environment.Environment(inputmanager=manager, outputmanager=outputmanager.FolderOutputManager(output_path))
     chart = env.load_raw(persisted_data)
     render_chart(chart, chart_id, env, request, config)
