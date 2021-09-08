@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from django.db import IntegrityError
 from django.shortcuts import render, get_object_or_404, reverse, get_list_or_404
 from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, HttpResponseForbidden, FileResponse
 from django.template import Engine
@@ -25,7 +26,23 @@ from json import load, loads, dumps
 import threading
 
 from django.core import signing
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.contrib.auth.password_validation import validate_password
+
+
+def get_affected_objects(key, clazz, request, error_on_missing=True):
+    """Get user objects affected in this request"""
+    affected_users = clazz.objects.filter(pk__in=request.data.get(key, []))
+    if error_on_missing:
+        for pk in request.data.get(key, []):
+            user_missing = True
+            for user in affected_users:
+                if str(pk) == str(user.id):
+                    user_missing = False
+                    continue
+            if user_missing:
+                raise ValueError(f"{pk} doesnt refer to any objects")
+    return affected_users
 
 
 # Create your views here.
@@ -73,8 +90,6 @@ class DatasourceCreateListView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = DatasourceSerializer
     queryset = Datasource.objects.all()
-
-    # FIXME: Upload limits?
 
     def post(self, request, *args, **kwargs):
         serializer = DatasourceSerializer(data=request.data, context={'request': request})
@@ -153,8 +168,6 @@ class ChartCreateListView(generics.ListCreateAPIView):
         'modification_time': ['gte', 'lte'],
         'chart_type': ['exact'],
     }
-
-    # FIXME: Upload limits?
 
     def post(self, request, *args, **kwargs):
         datasource = Datasource.objects.get(id=request.data['datasource'])
@@ -317,8 +330,7 @@ class ChartFileView(generics.RetrieveAPIView):
 
     # Add possible new files here
     # 'data.json' omitted on purpose, allows to limit data download separately later on with the chart-data endpoint
-    # TODO: Get whitelist from config
-    whitelist = ['config.json', 'site.html', 'shape.json']
+    whitelist = getattr(settings, 'CHART_FILE_WHITELIST', [])
 
     def get_object(self):
         obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
@@ -372,8 +384,6 @@ class ShareGroupCreateListView(generics.ListCreateAPIView):
     def get(self, request, *args, **kwargs):
         queryset = self.get_queryset()
 
-        # FIXME:
-        # Only show if not hidden or user has access
         is_public_permission = IsGroupPublic()
         is_user_group_owner_permission = IsUserGroupOwner()
         is_user_group_member_permission = IsUserGroupMember()
@@ -433,18 +443,6 @@ class ShareGroupRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView)
     permission_classes = [IsUserGroupOwner | IsUserGroupAdmin]
 
     # FIXME: Validate inputs for correct types
-
-    def get_affected_users(self, fieldname, request):
-        """Get user objects affected in this request"""
-        affected_users = []
-        # TODO: Instead of iterating this could be done with User.objects.filter(pk__in=request.data.get(fieldname, [])), but without the error response
-        for pk in request.data.get(fieldname, []):
-            try:
-                affected_users.append(User.objects.get(pk=pk))
-            except ObjectDoesNotExist:
-                return Response({'error': {'key': pk, 'reason': 'No such User'}}, status=status.HTTP_400_BAD_REQUEST)
-        return affected_users
-
     def get_object(self):
         obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
         self.check_object_permissions(self.request, obj)
@@ -457,14 +455,11 @@ class ShareGroupRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView)
     def patch(self, request, *args, **kwargs):
         obj = self.get_object()
 
-        new_members = self.get_affected_users("group_members", request)
-        if type(new_members) == Response:
-            # Getting affected users encountered an error, returned a response instead of a list User objects
-            return new_members
-        new_admins = self.get_affected_users("group_admins", request)
-        if type(new_admins) == Response:
-            # Getting affected groups encountered an error, returned a response instead of a list Group objects
-            return new_admins
+        try:
+            new_members = get_affected_objects("group_members", User, request)
+            new_admins = get_affected_objects("group_admins", User, request)
+        except ValueError as e:
+            return Response(str(e),status=status.HTTP_400_BAD_REQUEST)
 
         # Add users and groups to object
         obj.group_members.add(*new_members)
@@ -475,14 +470,11 @@ class ShareGroupRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView)
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()
 
-        new_members = self.get_affected_users("group_members", request)
-        if type(new_members) == Response:
-            # Getting affected users encountered an error, returned a response instead of a list User objects
-            return new_members
-        new_admins = self.get_affected_users("group_admins", request)
-        if type(new_admins) == Response:
-            # Getting affected groups encountered an error, returned a response instead of a list Group objects
-            return new_admins
+        try:
+            new_members = get_affected_objects("group_members", User, request)
+            new_admins = get_affected_objects("group_admins", User, request)
+        except ValueError as e:
+            return Response(str(e),status=status.HTTP_400_BAD_REQUEST)
 
         # Add users and groups to object
         obj.group_members.remove(*new_members)
@@ -494,27 +486,6 @@ class ShareGroupRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView)
 class ShareView(generics.RetrieveUpdateDestroyAPIView):
     """ Read, update or delete shares on sharable objects"""
     serializer_class = serializers.Serializer
-
-    def get_affected_users(self, request):
-        """Get user objects affected in this request"""
-        affected_users = []
-        for pk in request.data.get("users", []):
-            try:
-                affected_users.append(User.objects.get(pk=pk))
-            except ObjectDoesNotExist:
-                return Response({'error': {'key': pk, 'reason': 'No such User'}}, status=status.HTTP_400_BAD_REQUEST)
-        return affected_users
-
-    def get_affected_groups(self, request):
-        """Get group objects affected in this request"""
-
-        affected_groups = []
-        for pk in request.data.get("groups", []):
-            try:
-                affected_groups.append(ShareGroup.objects.get(pk=pk))
-            except ObjectDoesNotExist:
-                return Response({'error': {'key': pk, 'reason': 'No such Group'}}, status=status.HTTP_400_BAD_REQUEST)
-        return affected_groups
 
     def get_object(self):
         obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
@@ -535,14 +506,11 @@ class ShareView(generics.RetrieveUpdateDestroyAPIView):
     def patch(self, request, *args, **kwargs):
         obj = self.get_object()
 
-        new_users = self.get_affected_users(request)
-        if type(new_users) == Response:
-            # Getting affected users encountered an error, returned a response instead of a list User objects
-            return new_users
-        new_groups = self.get_affected_groups(request)
-        if type(new_groups) == Response:
-            # Getting affected groups encountered an error, returned a response instead of a list Group objects
-            return new_groups
+        try:
+            new_users = get_affected_objects("users", User, request)
+            new_groups = get_affected_objects("groups", ShareGroup, request)
+        except ValueError as e:
+            return Response(str(e),status=status.HTTP_400_BAD_REQUEST)
 
         # Add users and groups to object
         obj.shared_users.add(*new_users)
@@ -553,14 +521,11 @@ class ShareView(generics.RetrieveUpdateDestroyAPIView):
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()
 
-        new_users = self.get_affected_users(request)
-        if type(new_users) == Response:
-            # Getting affected users encountered an error, returned a response instead of a list User objects
-            return new_users
-        new_groups = self.get_affected_groups(request)
-        if type(new_groups) == Response:
-            # Getting affected groups encountered an error, returned a response instead of a list Group objects
-            return new_groups
+        try:
+            new_users = get_affected_objects("users", User, request)
+            new_groups = get_affected_objects("groups", ShareGroup, request)
+        except ValueError as e:
+            return Response(str(e),status=status.HTTP_400_BAD_REQUEST)
 
         # Try to remove users and groups
         obj.shared_users.remove(*new_users)
@@ -637,7 +602,7 @@ class UserSearchView(generics.RetrieveAPIView):
         def build_uuid_filter(id_query_input):
             # Check if input is a uuid. If input is not a uuid the whole lookup will fail with a ValidationError
             try:
-                _ = UUID(uuid)
+                _ = UUID(id_query_input)
                 return Q(id=id_query_input)  # Q(id=request.data["name"]) #direct lookup, should always work
             except Exception as e:
                 # Empty query filter
@@ -712,11 +677,6 @@ class CreatePasswordResetRequest(generics.CreateAPIView):
                 send_a_mail(email, context["title"], content=text_content, html_content=html_content)
             except User.DoesNotExist:
                 pass
-            except Exception as e:
-                # Another error
-                # TODO: Remove after debugging
-                print(type(e))
-                print(e)
 
         if "email" in request.data:
             # Run in thread to avoid runtime oracle
@@ -752,23 +712,18 @@ class ResetPasswordView(generics.ListCreateAPIView):
                 raise ValueError("Missing new password")
             if type(request.data["password"]) != str:
                 raise ValueError("Password must be a string")
-            #TODO: Verify password guidelines
+            validate_password(request.data["password"])
 
             # User is most likely not logged in when requesting a password change request, use user specified in token
             user = User.objects.get(id=user_id)
             # Change password in database
             user.set_password(request.data["password"])
-            # TODO: Invalidate spent tokens in DB
             return Response(status=status.HTTP_200_OK)
+        except ValidationError as e:
+            return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
         except signing.SignatureExpired as e:
             # Token expired
             return Response("Request expired!", status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            # Another error
-            # TODO: Remove after debugging
-            print(type(e))
-            print(e)
-            return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 @method_decorator(ratelimit(key='ip', rate='1/s'), name="dispatch")
@@ -779,37 +734,35 @@ class ChangeMailView(generics.CreateAPIView):
     def post(self, request, *args, **kwargs):
         # Create a request to change the users e-mail
 
+        user = request.user
+        # Verify users password again to make sure the request comes from the user and not someone hijacking the session
+        if not user.check_password(request.data["password"]):
+            return Response("Wrong password", status=status.HTTP_403_FORBIDDEN)
+
+        # Create a token for user with specified new e-mail
+        serialized_id = signing.dumps(
+            {'user': user.id.hex, 'token_type': "EMAIL_CHANGE", 'email': request.data["newEmail"]})
+
+        # Build a verification mail from templates
+        context = {
+            'title': 'Verify your mail address',
+            'token': serialized_id,
+            'confirmation_url': request.build_absolute_uri(
+                reverse("confirm_email", kwargs={'token': serialized_id}))
+        }
+        text_content = render_to_string('platformAPI/mail_change_text.jinja2', context=context, request=request)
+        html_content = render_to_string('platformAPI/mail_change_html.jinja2', context=context, request=request)
+
+
         try:
-            user = request.user
-            # Verify users password again to make sure the request comes from the user and not someone hijacking the session
-            if not user.check_password(request.data["password"]):
-                return Response("Wrong password", status=status.HTTP_403_FORBIDDEN)
-
-            # Create a token for user with specified new e-mail
-            serialized_id = signing.dumps(
-                {'user': user.id.hex, 'token_type': "EMAIL_CHANGE", 'email': request.data["newEmail"]})
-
-            # Build a verification mail from templates
-            context = {
-                'title': 'Verify your mail address',
-                'token': serialized_id,
-                'confirmation_url': request.build_absolute_uri(
-                    reverse("confirm_email", kwargs={'token': serialized_id}))
-            }
-            text_content = render_to_string('platformAPI/mail_change_text.jinja2', context=context, request=request)
-            html_content = render_to_string('platformAPI/mail_change_html.jinja2', context=context, request=request)
-
+            # Check if the mail is already in use. If yes, fail silently to not leak information
+            _ = User.objects.get(email=request.data["newEmail"])
+        except User.DoesNotExist:
+            # Mail not in use currently
             # Send the mail to the new mail address
             send_a_mail(
                 request.data["newEmail"], context['title'], text_content, html_content=html_content)
-            return Response(status=status.HTTP_200_OK)
-        except Exception as e:
-            # Another error
-            # TODO: Remove after debugging
-            print(type(e))
-            print(e)
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-
+        return Response(status=status.HTTP_200_OK)
 
 @method_decorator(ratelimit(key='ip', rate='1/s'), name="dispatch")
 class ConfirmMailView(generics.RetrieveAPIView):
@@ -826,7 +779,6 @@ class ConfirmMailView(generics.RetrieveAPIView):
                 return Response(status=status.HTTP_400_BAD_REQUEST)
             # User might not be logged in on the device the mail arrives, use user specified in token
             user = User.objects.get(id=loadedObject["user"])
-            # TODO: Make sure email is not already in use. Are DB constraints enough? Error Handling
             # Update databse entries
             user.email = loadedObject["email"]
             user.save()
@@ -835,12 +787,9 @@ class ConfirmMailView(generics.RetrieveAPIView):
         except signing.SignatureExpired as e:
             # Token expired
             return Response("Request expired!", status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            # Another error
-            # TODO: Remove after debugging
-            print(type(e))
-            print(e)
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+        except IntegrityError as e:
+            # DB-Constrain violated
+            return Response("E-Mail already in use", status=status.HTTP_400_BAD_REQUEST)
 
 
 @method_decorator(ratelimit(key='user', rate='1/1s'), name="dispatch")
@@ -854,11 +803,12 @@ class PasswordChangeView(generics.CreateAPIView):
             # Verify users password again to make sure the request comes from the user and not someone hijacking the session
             if not user.check_password(request.data["oldPassword"]):
                 return Response("Wrong password", status=status.HTTP_403_FORBIDDEN)
-            # TODO: Verify password guidelines
+            validate_password(request.data["newPassword"])
             # Change password in database
             user.set_password(request.data["newPassword"])
             user.save()
             return Response(status=status.HTTP_200_OK)
-
+        except ValidationError as e:
+            return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
         except:
             return Response(status=status.HTTP_400_BAD_REQUEST)

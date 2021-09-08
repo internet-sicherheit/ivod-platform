@@ -15,8 +15,7 @@ class TokenCopierMiddleware:
         try:
             JWT_AUTH = getattr(settings, "JWT_AUTH", {})
             JWT_AUTH_COOKIE = JWT_AUTH.get("JWT_AUTH_COOKIE", None)
-            #TODO: Get paths dynamically
-            if request.path == '/api/token/refresh/' or request.path == '/api/token/verify/':
+            if request.path.endswith('/token/refresh/') or request.path.endswith('token/verify/'):
                 if JWT_AUTH_COOKIE in request.COOKIES:
                     if request.encoding is None:
                         request.encoding = 'utf-8'
@@ -30,7 +29,7 @@ class TokenCopierMiddleware:
                         raise ValueError("Unsupported content Type")
 
             response = self.get_response(request)
-            if request.path == '/api/token/blacklist/' and response.status_code == 201:
+            if request.path.endswith('/token/blacklist/') and response.status_code == 201:
                 response.delete_cookie(JWT_AUTH_COOKIE)
         except Exception as e:
             raise SuspiciousOperation()

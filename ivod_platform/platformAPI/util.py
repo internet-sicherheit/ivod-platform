@@ -129,14 +129,10 @@ def send_a_mail(receiver, subject, content, html_content=None):
         return 1 == send_mail(
             subject=subject,
             message=content,
-            from_email="noreply@visquid.org", #TODO: Get Mail from settings
+            from_email=getattr(settings, "EMAIL_SENDING_ADDRESS"),
             recipient_list=[receiver],
             html_message=html_content,
-            connection=EmailBackend( #Move Backend config to settings
-                host='localhost',
-                port=587,
-                use_tls=True,
-            )
+            connection=EmailBackend()
         )
     except Exception as e:
         return False

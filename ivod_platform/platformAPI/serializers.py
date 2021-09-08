@@ -1,3 +1,4 @@
+import requests
 from rest_framework import serializers
 from .models import *
 from base64 import b64decode
@@ -8,8 +9,6 @@ from django.contrib.auth.models import AnonymousUser
 from .util import *
 
 class ChartSerializer(serializers.ModelSerializer):
-
-    #FIXME: Dont always generate JS, copy to a static dir; check folder structure; might need to touch output manager again
 
     class Meta:
         model = Chart
@@ -52,7 +51,6 @@ class ChartSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data = self.validate_create(validated_data)
         user = self.context['request'].user
-        # TODO: How to handle shares during creation? Ignore and keep sharing a separate action?
         chart = Chart.objects.create(
             chart_type=validated_data['chart_type'],
             chart_name=validated_data['chart_name'],
@@ -118,19 +116,15 @@ class DatasourceSerializer(serializers.ModelSerializer):
         if 'url' in data and 'data' in data:
             raise serializers.ValidationError("data and url must not be used together")
         if 'url' in data:
-            #TODO: Validate URL here
-            pass
-
-        #TODO: Validate actual data here
-
-        if self.context['request'].user == None or type(self.context['request'].user) == AnonymousUser:
+            # Test if url is reachable
+            _ = requests.head(data['url'], allow_redirects=True)
+        if self.context['request'].user is None or type(self.context['request'].user) == AnonymousUser:
             raise serializers.ValidationError("Only users may create Charts")
         return data
 
     def create(self, validated_data):
         validated_data = self.validate_create(validated_data)
         user = self.context['request'].user
-        #TODO: How to handle shares during creation? Ignore and keep sharing a separate action?
         if 'url' in validated_data:
             datasource = Datasource.objects.create(source=validated_data['url'], datasource_name=validated_data['datasource_name'], owner=user)
         else:
@@ -138,8 +132,13 @@ class DatasourceSerializer(serializers.ModelSerializer):
             file_path = get_datasource_base_path().joinpath(uuid4().hex)
             with file_path.open("w") as file:
                 file.write(data.decode('utf-8'))
-            # TODO: Handle Database exceptions better (especially violated constraints)
-            datasource = Datasource.objects.create(source=file_path, datasource_name=validated_data['datasource_name'], owner=user)
+            try:
+                datasource = Datasource.objects.create(source=file_path, datasource_name=validated_data['datasource_name'], owner=user)
+            except Exception as e:
+                #Clean up files
+                file_path.unlink(missing_ok=True)
+                #and reraise exception
+                raise e
         return datasource
 
     def update(self, instance, validated_data):
@@ -185,7 +184,6 @@ class ShareGroupSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data = self.validate_create(validated_data)
         user = self.context['request'].user
-        #TODO: How to handle shares during creation? Ignore and keep sharing a separate action?
         group = ShareGroup.objects.create(owner=user,
                                           name=validated_data["name"],
                                           is_public=validated_data["is_public"])

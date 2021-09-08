@@ -42,14 +42,12 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    #'django.contrib.staticfiles',
     'corsheaders',
     'platformAPI',
     'rest_framework',
     'django_filters',
     'rest_framework_jwt',
     'rest_framework_jwt.blacklist',
-    #'rest_framework_simplejwt',
 ]
 
 MIDDLEWARE = [
@@ -83,7 +81,6 @@ JWT_AUTH = {
 
 ROOT_URLCONF = 'ivod_platform.urls'
 
-#TODO: Manage load order of templates if specific cases occurr.
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -164,6 +161,13 @@ DATASOURCE_BASE_PATH = str(BASE_DIR.joinpath("datasources"))
 JS_BASE_PATH = str(BASE_DIR.joinpath("code"))
 #CHART_TEMPLATE = "/Path/To/Template/File"
 
+EMAIL_USE_TLS = True
+EMAIL_HOST = 'localhost'
+EMAIL_PORT = 587
+EMAIL_HOST_USER = 'nobody@localhost'
+EMAIL_HOST_PASSWORD = None
+EMAIL_SENDING_ADDRESS = None
+
 PASSWORD_RESET_URL = os.environ.get("PASSWORD_RESET_PATH", None)
 
 
@@ -178,6 +182,7 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 DATA_ALLOW_UNORDERED = False
+CHART_FILE_WHITELIST = ['config.json', 'site.html', 'shape.json']
 
 
 if 'CUSTOM_SETTING_PATH' in os.environ and Path(os.environ.get('CUSTOM_SETTING_PATH')).exists():
@@ -193,6 +198,10 @@ if 'CUSTOM_SETTING_PATH' in os.environ and Path(os.environ.get('CUSTOM_SETTING_P
 # If DEBUG=True unset values may be overridden by defaults.
 # If a value is overridden, a warning should be printed to stderr
 # Otherwise an error must be raised
+
+
+if EMAIL_SENDING_ADDRESS is None:
+    EMAIL_SENDING_ADDRESS = EMAIL_HOST_USER
 
 if not SECRET_KEY:
     if DEBUG:

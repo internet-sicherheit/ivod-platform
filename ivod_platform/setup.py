@@ -1,8 +1,7 @@
-from setuptools import setup, find_packages
-import os
+from setuptools import setup
 from pathlib import Path
 
-HARDCODED_PIVE_VERSION = '0.3.202109011220'
+HARDCODED_PIVE_VERSION = '0.3.202109011235'
 
 setup(
     name='ivod-platform',
@@ -12,7 +11,6 @@ setup(
                       'django-cors-headers',
                       'django-filter',
                       'aiosmtpd',
-                      #'djangorestframework-simplejwt',
                       'django-ratelimit',
                       'drf-jwt',
                       f'pive=={HARDCODED_PIVE_VERSION}',
