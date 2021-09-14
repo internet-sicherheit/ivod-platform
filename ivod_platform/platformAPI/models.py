@@ -13,8 +13,8 @@ class User(AbstractUser):
     email = models.EmailField(unique=True)
     real_name = models.BooleanField(default=False)
     public_profile = models.BooleanField(default=False)
-    #datasources_shared_with_user = models.ManyToManyField(Datasource)
-    #charts_shared_with_user = models.ManyToManyField(Chart)
+    is_verified = models.BooleanField(default=False)
+    creation_time = models.DateTimeField(auto_now_add=True)
 
 class ShareGroup(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="group_owner")
@@ -64,5 +64,5 @@ class Chart(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['owner','chart_name'],name='chart_unique_user_scope_path'),
+            models.UniqueConstraint(fields=['owner', 'chart_name'],name='chart_unique_user_scope_path'),
         ]

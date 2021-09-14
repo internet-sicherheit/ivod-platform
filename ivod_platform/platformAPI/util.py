@@ -12,6 +12,10 @@ from django.core.mail import send_mail, get_connection
 from datetime import datetime
 from django.core.mail.backends.smtp import EmailBackend
 
+from django.core import signing
+from django.template import Engine
+from django.template.loader import get_template, render_to_string
+
 def get_chart_types_for_datasource(datasource):
     """Create a list of supported chart types for a datasource
     :param Datasource datasource: The datasource, for which the chart types should be generated
@@ -136,6 +140,24 @@ def send_a_mail(receiver, subject, content, html_content=None):
         )
     except Exception as e:
         return False
+
+def send_verification_mail(user, email, request):
+    # Create a token for user with specified new e-mail
+    serialized_id = signing.dumps(
+        {'user': user.id.hex, 'token_type': "EMAIL_CHANGE", 'email': email}
+    )
+
+    # Build a verification mail from templates
+    context = {
+        'title': 'Verify your mail address',
+        'token': serialized_id,
+        'confirmation_url': request.build_absolute_uri(
+            reverse("confirm_email", kwargs={'token': serialized_id}))
+    }
+    text_content = render_to_string('platformAPI/mail_change_text.jinja2', context=context, request=request)
+    html_content = render_to_string('platformAPI/mail_change_html.jinja2', context=context, request=request)
+
+    send_a_mail(email, context['title'], text_content, html_content=html_content)
 
 def get_timestamp_from_token(token):
     # Functionality should be the same as django.core.signing.TimestampSigner

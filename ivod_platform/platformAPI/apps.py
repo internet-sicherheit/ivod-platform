@@ -25,7 +25,7 @@ class PlatformapiConfig(AppConfig):
             boot_users = getattr(settings, "BOOT_USERS", [])
             for b_user in boot_users:
                 try:
-                    new_user = User.objects.create_user(email=b_user['email'], username=b_user['username'], password=b_user['password'])
+                    new_user = User.objects.create_user(**b_user)
                 except IntegrityError as error:
                     # Race condition during insertion or user already in DB before, ignore
                     pass

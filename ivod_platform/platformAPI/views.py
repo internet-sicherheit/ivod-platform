@@ -608,14 +608,15 @@ class UserSearchView(generics.RetrieveAPIView):
                 # Empty query filter
                 return Q()
 
-        search_filter = (build_uuid_filter(name)  # Q(id=request.data["name"]) #direct lookup, should always work
-                         | Q(public_profile=True)  # Otherwise only look for public profiles
-                         & (Q(username__contains=name)  # Searching by username should work even if real name is hidden
-                            | (
+        search_filter = (Q(is_verified=True) \
+                            & (build_uuid_filter(name)  # Q(id=request.data["name"]) #direct lookup, should always work
+                             | Q(public_profile=True)  # Otherwise only look for public profiles
+                             & (Q(username__contains=name)  # Searching by username should work even if real name is hidden
+                                | (
                                     Q(real_name=True)  # Search by real name only when real name is publicly displayed
                                     & (
-                                            Q(first_name__contains=name)
-                                            | Q(last_name__contains=name)))))
+                                        Q(first_name__contains=name)
+                                        | Q(last_name__contains=name))))))
         objects = User.objects.filter(search_filter)
         serializer = UserSerializer(objects, many=True, context={'request': request})
         return Response(serializer.data)
@@ -632,6 +633,20 @@ class MultiUserView(generics.CreateAPIView):
         serializer = UserSerializer(objects, many=True, context={'request': request})
         return Response(serializer.data)
 
+@method_decorator(ratelimit(key='ip', rate='5/m'), name="dispatch")
+class CreateUserView(generics.CreateAPIView):
+    serializer_class = serializers.Serializer
+
+    def post(self, request, *args, **kwargs):
+        if type(request.user) == AnonymousUser:
+            serializer = UserSerializer(data=request.data, context={'request': request})
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            send_verification_mail(serializer.instance, request.data["email"], request)
+            return Response(status=status.HTTP_201_CREATED)
+        else:
+            # TODO: Is there any legitimate reason to create another user while logged in?
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
 @method_decorator(ratelimit(key='ip', rate='1/s'), name="dispatch")
 class CreatePasswordResetRequest(generics.CreateAPIView):
@@ -739,29 +754,13 @@ class ChangeMailView(generics.CreateAPIView):
         if not user.check_password(request.data["password"]):
             return Response("Wrong password", status=status.HTTP_403_FORBIDDEN)
 
-        # Create a token for user with specified new e-mail
-        serialized_id = signing.dumps(
-            {'user': user.id.hex, 'token_type': "EMAIL_CHANGE", 'email': request.data["newEmail"]})
-
-        # Build a verification mail from templates
-        context = {
-            'title': 'Verify your mail address',
-            'token': serialized_id,
-            'confirmation_url': request.build_absolute_uri(
-                reverse("confirm_email", kwargs={'token': serialized_id}))
-        }
-        text_content = render_to_string('platformAPI/mail_change_text.jinja2', context=context, request=request)
-        html_content = render_to_string('platformAPI/mail_change_html.jinja2', context=context, request=request)
-
-
         try:
             # Check if the mail is already in use. If yes, fail silently to not leak information
             _ = User.objects.get(email=request.data["newEmail"])
         except User.DoesNotExist:
             # Mail not in use currently
             # Send the mail to the new mail address
-            send_a_mail(
-                request.data["newEmail"], context['title'], text_content, html_content=html_content)
+            send_verification_mail(user, request.data["newEmail"], request)
         return Response(status=status.HTTP_200_OK)
 
 @method_decorator(ratelimit(key='ip', rate='1/s'), name="dispatch")
@@ -781,6 +780,7 @@ class ConfirmMailView(generics.RetrieveAPIView):
             user = User.objects.get(id=loadedObject["user"])
             # Update databse entries
             user.email = loadedObject["email"]
+            user.is_verified = True
             user.save()
             #TODO: Redirect to success/failure pages
             return Response("Email confirmed", status=status.HTTP_200_OK)

@@ -69,11 +69,11 @@ class PlatformAPITestCase(APITestCase):
     def setUp(self):
         #TODO: Actually generate datasources and charts with the API endpoints
         self.admin = User.objects.create_superuser(email="admin@localhost", username="admin", password=getattr(settings, "ADMIN_PASS"))
-        self.user1 = User.objects.create_user(email="user1@localhost", username="user1", password="00000000")
-        self.user2 = User.objects.create_user(email="user2@localhost", username="user2", password="00000000")
+        self.user1 = User.objects.create_user(email="user1@localhost", username="user1", password="00000000", is_verified=True)
+        self.user2 = User.objects.create_user(email="user2@localhost", username="user2", password="00000000", is_verified=True)
         #Use user3 for a authenticated, but otherwise no permissions
-        self.user3 = User.objects.create_user(email="user3@localhost", username="user3", password="00000000")
-        self.user4 = User.objects.create_user(email="user4@localhost", username="user4", password="00000000")
+        self.user3 = User.objects.create_user(email="user3@localhost", username="user3", password="00000000", is_verified=True)
+        self.user4 = User.objects.create_user(email="user4@localhost", username="user4", password="00000000", is_verified=True)
 
 
         self.group1 = self.create_group("user1@localhost", "00000000", "group1", public=False, admins=[self.user2.id], members=[self.user4.id])

@@ -42,6 +42,7 @@ urlpatterns = [
     path('user/id/<pk>/', UserView.as_view(), name='get_user'),
     path('user/search/', UserSearchView.as_view(), name='search_user_by_name'),
     path('user/', MultiUserView.as_view(), name='get_users'),
+    path('user/register/', CreateUserView.as_view(), name='create_user'),
 
     path('password/reset/', CreatePasswordResetRequest.as_view(), name='iniate_password_reset'),
     path('password/reset/<token>/', ResetPasswordView.as_view(), name='do_password_reset'),

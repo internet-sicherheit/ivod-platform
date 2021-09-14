@@ -227,7 +227,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ('username', 'email', 'id', 'first_name', 'last_name', 'public_profile', 'real_name')
         read_only_fields = ['id']
         extra_kwargs = {
-            'password': {'required': False, 'write_only':True},
+            'password': {'required': False, 'write_only': True},
             'username': {'required': False},
             'email': {'required': False},
             'first_name': {'required': False},
@@ -246,6 +246,8 @@ class UserSerializer(serializers.ModelSerializer):
 
     def validate_create(self, data):
         """Validation step required on creation only."""
+        if 'email' not in data:
+            raise ValueError("E-Mail required")
         if 'username' not in data:
             raise ValueError("Username required")
         if 'password' not in data:
@@ -257,6 +259,7 @@ class UserSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(username=validated_data['username'], password=validated_data['password'], email=validated_data.get('email'))
         user.first_name = validated_data.get('first_name', "")
         user.last_name = validated_data.get('last_name', "")
+        user.save()
         return user
 
     def update(self, instance, validated_data):
