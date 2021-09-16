@@ -170,6 +170,8 @@ EMAIL_SENDING_ADDRESS = None
 
 PASSWORD_RESET_URL = os.environ.get("PASSWORD_RESET_PATH", None)
 
+TOKEN_MAX_LIFETIME = datetime.timedelta(minutes=15)
+
 
 #CORS Config
 CORS_ALLOW_ALL_ORIGINS = DEBUG
