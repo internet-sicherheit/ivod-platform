@@ -716,7 +716,7 @@ class ResetPasswordView(generics.ListCreateAPIView):
         try:
             token = self.kwargs["token"]
             # Load data from token and check expiration
-            loadedObject = signing.loads(token, max_age=15 * 60)  # 15 minute timeout
+            loadedObject = signing.loads(token, max_age=settings.TOKEN_MAX_LIFETIME)
             # Check if token type is a password reset token and not another signed by this server
             if "token_type" not in loadedObject or loadedObject["token_type"] != "PASSWORD_RESET":
                 # Wrong token
@@ -771,7 +771,7 @@ class ConfirmMailView(generics.RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         try:
             # Load data from token and check expiration
-            loadedObject = signing.loads(kwargs["token"], max_age=15 * 60)  # 15 minute timeout
+            loadedObject = signing.loads(kwargs["token"], max_age=settings.TOKEN_MAX_LIFETIME)  # 15 minute timeout
             # Check if token type is an e-mail change token and not another signed by this server
             if "token_type" not in loadedObject or loadedObject["token_type"] != "EMAIL_CHANGE":
                 # Wrong token
