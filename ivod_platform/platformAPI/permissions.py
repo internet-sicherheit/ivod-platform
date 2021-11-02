@@ -1,7 +1,6 @@
 from rest_framework import permissions
-from .models import *
-from django.db.models import Q
-from django.contrib.auth.models import User, Group, AnonymousUser
+from .models import Chart, Datasource, ShareGroup
+from django.contrib.auth.models import AnonymousUser
 
 class IsChartOwner(permissions.BasePermission):
 

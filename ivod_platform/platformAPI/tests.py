@@ -1,6 +1,6 @@
 from rest_framework.test import APITestCase
 from django.shortcuts import reverse
-from .permissions import *
+from .models import Datasource, Chart, ShareGroup
 from .models import User
 from pathlib import Path
 from shutil import rmtree

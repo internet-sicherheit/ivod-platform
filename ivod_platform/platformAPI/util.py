@@ -8,13 +8,11 @@ import sys
 import os
 from django.conf import settings
 
-from django.core.mail import send_mail, get_connection
-from datetime import datetime
+from django.core.mail import send_mail
 from django.core.mail.backends.smtp import EmailBackend
 
 from django.core import signing
-from django.template import Engine
-from django.template.loader import get_template, render_to_string
+from django.template.loader import render_to_string
 
 def get_chart_types_for_datasource(datasource):
     """Create a list of supported chart types for a datasource

@@ -1,10 +1,9 @@
 from django.urls import path
 from .views import *
-from .serializers import *
+from django.conf import settings
 
 from rest_framework_jwt.views import obtain_jwt_token, verify_jwt_token, refresh_jwt_token
 from rest_framework_jwt.blacklist.views import BlacklistView
-
 
 urlpatterns = [
     path('charts', ChartCreateListView.as_view(), name='chart-add'),

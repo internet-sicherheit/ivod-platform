@@ -1,6 +1,5 @@
 from django.conf import settings
 from json import loads, dumps
-import datetime
 
 from django.core.exceptions import SuspiciousOperation
 
