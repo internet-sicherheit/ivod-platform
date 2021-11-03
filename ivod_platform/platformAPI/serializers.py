@@ -2,7 +2,7 @@ import json
 
 import requests
 from rest_framework import serializers
-from .models import Chart, Datasource, ShareGroup, User, Dashboard
+from .models import Chart, Datasource, ShareGroup, User, Dashboard, ShareableModel
 from base64 import b64decode
 from uuid import uuid4
 from django.contrib.auth.models import AnonymousUser
@@ -58,7 +58,7 @@ class ChartSerializer(serializers.ModelSerializer):
             owner=user,
             original_datasource=validated_data['datasource'],
             downloadable=validated_data.get('downloadable',False),
-            visibility=validated_data.get('visibility', Chart.VISIBILITY_PRIVATE)
+            visibility=validated_data.get('visibility', ShareableModel.VISIBILITY_PRIVATE)
         )
         try:
             generate_chart(datasource=validated_data["datasource"], chart_id=chart.id, chart_type=validated_data["chart_type"], request=self.context['request'], config=validated_data["config"])
@@ -96,6 +96,7 @@ class DatasourceSerializer(serializers.ModelSerializer):
             'source': {'required': False, 'write_only': True},
             'owner': {'required': False, 'read_only': True},
             'datasource_name': {'required': False},
+            'visibility': {'required': False},
             'shared_users': {'required': False, 'write_only': True},
             'shared_groups': {'required': False, 'write_only': True}
         }
@@ -127,14 +128,14 @@ class DatasourceSerializer(serializers.ModelSerializer):
         validated_data = self.validate_create(validated_data)
         user = self.context['request'].user
         if 'url' in validated_data:
-            datasource = Datasource.objects.create(source=validated_data['url'], datasource_name=validated_data['datasource_name'], owner=user)
+            datasource = Datasource.objects.create(source=validated_data['url'], datasource_name=validated_data['datasource_name'], owner=user, visibility=validated_data.get('visibility', ShareableModel.VISIBILITY_PRIVATE))
         else:
             data = b64decode(validated_data['data'])
             file_path = get_datasource_base_path().joinpath(uuid4().hex)
             with file_path.open("w") as file:
                 file.write(data.decode('utf-8'))
             try:
-                datasource = Datasource.objects.create(source=file_path, datasource_name=validated_data['datasource_name'], owner=user)
+                datasource = Datasource.objects.create(source=file_path, datasource_name=validated_data['datasource_name'], owner=user, visibility=validated_data.get('visibility', ShareableModel.VISIBILITY_PRIVATE))
             except Exception as e:
                 #Clean up files
                 file_path.unlink(missing_ok=True)
@@ -144,6 +145,7 @@ class DatasourceSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         instance.datasource_name = validated_data.get('datasource_name', instance.datasource_name)
+        instance.visibility = validated_data.get('visibility', instance.visibility)
         instance.save()
         return instance
 
@@ -361,7 +363,7 @@ class DashboardSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data = self.validate_create(validated_data)
         user = self.context['request'].user
-        dashboard = Dashboard.objects.create(owner=user, name=validated_data["name"], config=validated_data["config"], visibility=validated_data.get('visibility', Dashboard.VISIBILITY_PRIVATE))
+        dashboard = Dashboard.objects.create(owner=user, name=validated_data["name"], config=validated_data["config"], visibility=validated_data.get('visibility', ShareableModel.VISIBILITY_PRIVATE))
         dashboard.save()
         return dashboard
 

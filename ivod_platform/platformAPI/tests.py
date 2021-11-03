@@ -2,7 +2,7 @@ import json
 
 from rest_framework.test import APITestCase
 from django.shortcuts import reverse
-from .models import Datasource, Chart, ShareGroup
+from .models import Datasource, Chart, ShareGroup, ShareableModel
 from .models import User
 from pathlib import Path
 from shutil import rmtree
@@ -19,8 +19,8 @@ class PlatformAPITestCase(APITestCase):
         PROTO = getattr(self, 'PROTO', 'http')
         return (SERVER_NAME,SERVER_PORT, PROTO)
 
-    def create_datasource(self, user, password, datasource_name, data):
-        data = {'data': f'{b64encode(data).decode(encoding="utf-8")}', 'datasource_name': datasource_name}
+    def create_datasource(self, user, password, datasource_name, data, visibility=ShareableModel.VISIBILITY_PRIVATE):
+        data = {'data': f'{b64encode(data).decode(encoding="utf-8")}', 'datasource_name': datasource_name, 'visibility':visibility}
         url = reverse("datasource-add")
         self.assertTrue(self.client.login(email=user, password=password))
         (SERVER_NAME, SERVER_PORT,PROTO) = self.get_server_address()
@@ -86,7 +86,7 @@ class PlatformAPITestCase(APITestCase):
 
         datasource_base_path = Path(__file__).resolve().parent.joinpath("sample-data").joinpath("data").joinpath("metadata")
         with datasource_base_path.joinpath("simple_series.json").open("rb") as source_file:
-            self.datasource1 = self.create_datasource(self.user1.email, "00000000", "/file1", source_file.read())
+            self.datasource1 = self.create_datasource(self.user1.email, "00000000", "/file1", source_file.read(), ShareableModel.VISIBILITY_SHARED)
         with datasource_base_path.joinpath("numerical.json").open("rb") as source_file:
             self.datasource2 = self.create_datasource(self.user2.email, "00000000", "/file2", source_file.read())
 

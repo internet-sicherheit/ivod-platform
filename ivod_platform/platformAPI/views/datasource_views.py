@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import generics
 from ..serializers import DatasourceSerializer
-from ..permissions import IsOwner, IsSharedWithUser
+from ..permissions import IsOwner, IsSharedWithUser, IsShared
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import permissions
@@ -37,7 +37,7 @@ class DatasourceCreateListView(generics.ListCreateAPIView):
 
 class DatasourceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     """Modify or delete an existing datasource"""
-    permission_classes = [permissions.IsAuthenticated & (IsOwner | IsSharedWithUser)]
+    permission_classes = [permissions.IsAuthenticated & (IsOwner | IsShared & IsSharedWithUser)]
     serializer_class = DatasourceSerializer
     queryset = Datasource.objects.all()
 
