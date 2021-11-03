@@ -155,3 +155,27 @@ class DashboardIsSharedWithUser(permissions.BasePermission):
         union_membership = (group_admin_positions_of_user | group_memberships_of_user)
         intersection_between_groups = shared_groups & union_membership
         return user in shared_users or intersection_between_groups
+
+class DashboardIsPublic(permissions.BasePermission):
+
+    def has_object_permission(self, request, view, obj):
+        # Only make decisions about Chart Objects
+        if not type(obj) == Dashboard:
+            return False
+        return obj.visibility >= Dashboard.VISIBILITY_PUBLIC
+
+class DashboardIsSemiPublic(permissions.BasePermission):
+
+    def has_object_permission(self, request, view, obj):
+        # Only make decisions about Chart Objects
+        if not type(obj) == Dashboard:
+            return False
+        return obj.visibility >= Dashboard.VISIBILITY_SEMI_PUBLIC
+
+class DashboardIsShared(permissions.BasePermission):
+
+    def has_object_permission(self, request, view, obj):
+        # Only make decisions about Chart Objects
+        if not type(obj) == Dashboard:
+            return False
+        return obj.visibility >= Dashboard.VISIBILITY_SHARED

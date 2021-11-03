@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, status, serializers
 from rest_framework.reverse import reverse
 from ..serializers import DashboardSerializer
-from ..permissions import IsDashboardOwner, DashboardIsSharedWithUser
+from ..permissions import IsDashboardOwner, DashboardIsSharedWithUser, DashboardIsShared, DashboardIsSemiPublic
 from ..models import Dashboard
 
 from rest_framework.response import Response
@@ -40,7 +40,7 @@ class DashboardCreateListView(generics.ListCreateAPIView):
 
 class DashboardRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     """Modify or delete an existing datasource"""
-    permission_classes = [permissions.IsAuthenticated & (IsDashboardOwner | DashboardIsSharedWithUser)]
+    permission_classes = [permissions.IsAuthenticated & (IsDashboardOwner | DashboardIsShared & DashboardIsSharedWithUser | DashboardIsSemiPublic)]
     serializer_class = DashboardSerializer
     queryset = Dashboard.objects.all()
 

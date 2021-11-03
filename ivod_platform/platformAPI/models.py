@@ -28,7 +28,7 @@ class ShareGroup(models.Model):
             models.UniqueConstraint(fields=['owner', 'name'], name='group_unique_user_scope_path'),
         ]
 
-# Create your models here.
+
 class Datasource(models.Model):
     source = models.URLField()
     creation_time = models.DateTimeField(auto_now_add=True)
@@ -69,12 +69,18 @@ class Chart(models.Model):
 
 class Dashboard(models.Model):
 
+    VISIBILITY_PRIVATE = 0
+    VISIBILITY_SHARED = 1
+    VISIBILITY_SEMI_PUBLIC = 2
+    VISIBILITY_PUBLIC = 3
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=256)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="dashboard_owner")
     creation_time = models.DateTimeField(auto_now_add=True)
     modification_time = models.DateTimeField(auto_now=True)
     config = models.CharField(max_length=1024*16) #TODO: Adequate limit?
+    visibility = models.IntegerField(default=VISIBILITY_PRIVATE)
 
     # class Meta:
     #     constraints = [

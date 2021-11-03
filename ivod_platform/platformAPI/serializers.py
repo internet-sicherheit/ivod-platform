@@ -283,6 +283,7 @@ class DashboardSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'name': {'required': False},
             'config': {'required': False},
+            'visibility': {'required': False},
             'shared_users': {'required': False, 'write_only': True},
             'shared_groups': {'required': False, 'write_only': True}
         }
@@ -360,13 +361,14 @@ class DashboardSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data = self.validate_create(validated_data)
         user = self.context['request'].user
-        dashboard = Dashboard.objects.create(owner=user, name=validated_data["name"], config=validated_data["config"])
+        dashboard = Dashboard.objects.create(owner=user, name=validated_data["name"], config=validated_data["config"], visibility=validated_data.get('visibility', Dashboard.VISIBILITY_PRIVATE))
         dashboard.save()
         return dashboard
 
     def update(self, instance, validated_data):
         instance.name = validated_data.get('name', instance.name)
         instance.config = validated_data.get('config', instance.config)
+        instance.visibility = validated_data.get('visibility', instance.visibility)
 
         instance.save()
         return instance

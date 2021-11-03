@@ -66,7 +66,7 @@ class ChartCreateListView(generics.ListCreateAPIView):
 
 class ChartRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
     """Modify or delete an existing chart"""
-    permission_classes = [permissions.IsAuthenticated & (IsChartOwner | ChartIsSharedWithUser)]
+    permission_classes = [permissions.IsAuthenticated & (IsChartOwner | (ChartIsShared & ChartIsSharedWithUser))]
     serializer_class = ChartSerializer
     queryset = Chart.objects.all()
 
