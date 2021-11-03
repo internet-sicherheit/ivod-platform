@@ -22,6 +22,10 @@ urlpatterns = [
     path('datasources/<pk>/shared', DatasourceShareView.as_view(), name='datasource-shared'),
     path('datasources/<pk>/charttypes', ChartTypeView.as_view(), name='datasource-charttypes'),
 
+    path('dashboard', DashboardCreateListView.as_view(), name='dashboard-add'),
+    path('dashboard/<pk>', DashboardRetrieveUpdateDestroyAPIView.as_view(), name='dashboard-get'),
+    path('dashboard/<pk>/shared', DashboardShareView.as_view(), name='dashboard-shared'),
+
     path('groups', ShareGroupCreateListView.as_view(), name='sharegroup-add'),
     path('groups/<pk>', ShareGroupRetrieveDestroyView.as_view(), name='sharegroup-get'),
     path('groups/<pk>/properties', ShareGroupRetrieveUpdateDestroyView.as_view(), name='sharegroup-properties'),

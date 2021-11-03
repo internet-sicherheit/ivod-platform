@@ -1,6 +1,8 @@
+import json
+
 import requests
 from rest_framework import serializers
-from .models import Chart, Datasource, ShareGroup, User
+from .models import Chart, Datasource, ShareGroup, User, Dashboard
 from base64 import b64decode
 from uuid import uuid4
 from django.contrib.auth.models import AnonymousUser
@@ -169,7 +171,7 @@ class ShareGroupSerializer(serializers.ModelSerializer):
         """Validation step required on creation only."""
 
         if 'name' not in data:
-            raise ValueError("No group name chosen.")
+            raise serializers.ValidationError("No group name chosen.")
         if 'is_public' not in data:
             data['is_public'] = False
         if 'group_admins' not in data:
@@ -246,11 +248,11 @@ class UserSerializer(serializers.ModelSerializer):
     def validate_create(self, data):
         """Validation step required on creation only."""
         if 'email' not in data:
-            raise ValueError("E-Mail required")
+            raise serializers.ValidationError("E-Mail required")
         if 'username' not in data:
-            raise ValueError("Username required")
+            raise serializers.ValidationError("Username required")
         if 'password' not in data:
-            raise ValueError("Password required")
+            raise serializers.ValidationError("Password required")
         return data
 
     def create(self, validated_data):
@@ -268,6 +270,103 @@ class UserSerializer(serializers.ModelSerializer):
 
         instance.public_profile = validated_data.get('public_profile', instance.public_profile)
         instance.real_name = validated_data.get('real_name', instance.public_profile)
+
+        instance.save()
+        return instance
+
+class DashboardSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Dashboard
+        fields = '__all__'
+        read_only_fields = ['id', 'owner', 'creation_time', 'modification_time']
+        extra_kwargs = {
+            'name': {'required': False},
+            'config': {'required': False},
+            'shared_users': {'required': False, 'write_only': True},
+            'shared_groups': {'required': False, 'write_only': True}
+        }
+
+    def parse_config(self, config, strip_extra=True):
+        supported_generators = ['id', 'chart'] #TODO: Get list from config to make adding generators easier
+
+        def parse_split(c):
+            keys = set(c.keys())
+            if 'aspect' not in c:
+                raise serializers.ValidationError("split must have an aspect ratio")
+            elif (len(c['aspect']) != 2 or type(c['aspect'][0]) != int  or type(c['aspect'][1]) != int or c['aspect'][0]<0  or c['aspect'][1]<0):
+                raise serializers.ValidationError("aspect ratio must be a list of exact 2 positive integers")
+            else:
+                keys.remove('aspect')
+            if 'c1' in c:
+                keys.remove('c1')
+                parse_child(c['c1'])
+            if 'c2' in c:
+                keys.remove('c2')
+                parse_child(c['c2'])
+            if 'horizontal' in c:
+                keys.remove('horizontal')
+            for key in keys:
+                if strip_extra:
+                    _ = c.pop(key)
+                else:
+                    raise serializers.ValidationError(f"Invalid keys: {keys}")
+            return c
+
+        def parse_child(c):
+            keys = set(c.keys())
+            if 'split' in keys:
+                keys.remove('split')
+                parse_split(c['split'])
+            if 'generatorName' in keys:
+                keys.remove('generatorName')
+                if c['generatorName'] not in supported_generators:
+                    raise serializers.ValidationError(f"Unsupported generator: {c['generatorName']}")
+            if 'args' in c:
+                keys.remove('args')
+                #TODO: Validate args? Those depend on the used generator. Hardcoding this makes changing generators harder
+            for key in keys:
+                if strip_extra:
+                    _ = c.pop(key)
+                else:
+                    raise serializers.ValidationError(f"Invalid keys: {keys}")
+            return c
+
+        config_object = json.loads(config)
+        config_object = parse_split(config_object)
+        return json.dumps(config_object)
+
+    def validate(self, data):
+        unvalidated_data = self.context['request'].data
+        unvalidated_data.update(data)
+        # Owner will be set by the requesting user. If it is set, remove it
+        if 'owner' in unvalidated_data:
+            unvalidated_data.pop('owner')
+        if 'config' in unvalidated_data:
+            try:
+                unvalidated_data['config'] = self.parse_config(unvalidated_data['config'])
+            except json.decoder.JSONDecodeError:
+                raise serializers.ValidationError("Config must be valid JSON")
+        return unvalidated_data
+
+    def validate_create(self, data):
+        """Validation step required on creation only."""
+        if 'config' not in data:
+            raise serializers.ValidationError("Dashboard config required")
+        if 'name' not in data:
+            raise serializers.ValidationError("Name required")
+        return data
+
+    def create(self, validated_data):
+        validated_data = self.validate_create(validated_data)
+        user = self.context['request'].user
+        dashboard = Dashboard.objects.create(owner=user, name=validated_data["name"], config=validated_data["config"])
+        dashboard.save()
+        return dashboard
+
+    def update(self, instance, validated_data):
+        instance.name = validated_data.get('name', instance.name)
+        instance.config = validated_data.get('config', instance.config)
 
         instance.save()
         return instance

@@ -1,3 +1,5 @@
+import json
+
 from rest_framework.test import APITestCase
 from django.shortcuts import reverse
 from .models import Datasource, Chart, ShareGroup
@@ -8,8 +10,6 @@ from .util import generate_chart, get_chart_base_path, get_datasource_base_path,
 from base64 import b64encode
 from json import loads, load
 from django.conf import settings
-# Create your tests here.
-
 
 class PlatformAPITestCase(APITestCase):
 
@@ -113,6 +113,48 @@ class PlatformAPITestCase(APITestCase):
         self.datasource1.shared_groups.add(self.group1)
         self.datasource1.save()
 
+        self.valid_dashboard_config = json.dumps({
+    'horizontal': False,
+    'aspect': [900, 600],
+    'c1': {
+      'split': {
+        'horizontal': True,
+        'aspect': [200, 100],
+        'c1': {
+          'split': {
+            'horizontal': False,
+            'aspect': [100, 50],
+            'c1': {
+              'generatorName': "chart",
+              'args': {'chartID': 32}
+            },
+            'c2': {
+              'generatorName': "chart",
+              'args': {'chartID': 32}
+            },
+          }
+        },
+        'c2': {
+          'split': {
+            'horizontal': False,
+            'DEBUG': 2,
+            'aspect': [100, 50],
+            'c1': {
+              'generatorName': "chart",
+              'args': {'chartID': 32}
+            },
+            'c2': {
+              'generatorName': "chart",
+              'args': {'chartID': 32}
+            },
+          }
+        }
+      }
+    }
+  })
+        self.invalid_dashboard_config1 = ""
+        self.invalid_dashboard_config2 = "A dictionary is expected, not a string."
+
     def test_datasources_list_unautenticated(self):
         # Access listing of datasources unauthenticated -> Error 403
         data = {}
@@ -180,7 +222,7 @@ class PlatformAPITestCase(APITestCase):
     def test_chart_read_owned(self):
         # Access a chart directly by its key, with it being owned -> Success
         data = {}
-        url = reverse("chart-get", kwargs={'pk':self.chart2.id})
+        url = reverse("chart-get", kwargs={'pk': self.chart2.id})
         self.assertTrue(self.client.login(email='user1@localhost', password='00000000'))
         response = self.client.get(url, data, format='json')
         self.assertEquals(response.status_code, 200)
@@ -986,5 +1028,48 @@ class PlatformAPITestCase(APITestCase):
         group = ShareGroup.objects.get(id=self.group1.id)
         self.assertNotIn(self.user3.id, group.group_members.all())
         self.assertNotIn(self.user3.id, group.group_admins.all())
+
+    def test_create_dashboard_anonymous(self):
+        data = {'name': 'new_dashboard', 'config': self.valid_dashboard_config}
+        url = reverse("dashboard-add")
+        #self.assertTrue(self.client.login(email='user4@localhost', password='00000000'))
+        response = self.client.post(url, data, format='json')
+        self.assertEquals(response.status_code, 403)
+
+    def test_create_dashboard_valid_data(self):
+        data = {'name': 'new_dashboard', 'config': self.valid_dashboard_config}
+        url = reverse("dashboard-add")
+        self.assertTrue(self.client.login(email='user4@localhost', password='00000000'))
+        response = self.client.post(url, data, format='json')
+        self.assertEquals(response.status_code, 201)
+
+    def test_create_dashboard_invalid_data(self):
+        self.assertTrue(self.client.login(email='user4@localhost', password='00000000'))
+        url = reverse("dashboard-add")
+
+        data = {'name': 'new_dashboard', 'config': self.invalid_dashboard_config1}
+        response = self.client.post(url, data, format='json')
+        self.assertEquals(response.status_code, 400)
+
+        data = {'name': 'new_dashboard', 'config': self.invalid_dashboard_config2}
+        response = self.client.post(url, data, format='json')
+        self.assertEquals(response.status_code, 400)
+
+    def test_create_dashboard_extra_data_stripping(self):
+        self.assertTrue(self.client.login(email='user4@localhost', password='00000000'))
+        url = reverse("dashboard-add")
+
+        extra_keys_dashboard_config = json.loads(self.valid_dashboard_config)
+        extra_keys_dashboard_config['extra'] = "Extra data should be stripped"
+        extra_keys_dashboard_config = json.dumps(extra_keys_dashboard_config)
+
+        data = {'name': 'new_dashboard', 'config': extra_keys_dashboard_config}
+        response = self.client.post(url, data, format='json')
+        self.assertEquals(response.status_code, 201)
+        self.assertNotIn('extra',response.data['config'])
+        #TODO: Make sure extra key was stripped
+
+
+
 
     #TODO: Check responses for values that should not be visible for all users to confirm correct filtering on serializer level

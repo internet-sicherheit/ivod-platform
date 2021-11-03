@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.models import Group
 from django.contrib.auth.admin import UserAdmin, GroupAdmin
-from .models import Chart, Datasource, ShareGroup, User
+from .models import Chart, Datasource, ShareGroup, User, Dashboard
 # Register your models here.
 
 class CustomUserAdmin(UserAdmin):
@@ -19,3 +19,4 @@ admin.site.register(Group, CustomGroupAdmin)
 admin.site.register(Chart)
 admin.site.register(Datasource)
 admin.site.register(ShareGroup)
+admin.site.register(Dashboard)

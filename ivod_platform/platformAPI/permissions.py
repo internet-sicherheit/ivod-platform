@@ -1,5 +1,5 @@
 from rest_framework import permissions
-from .models import Chart, Datasource, ShareGroup
+from .models import Chart, Datasource, ShareGroup, Dashboard
 from django.contrib.auth.models import AnonymousUser
 
 class IsChartOwner(permissions.BasePermission):
@@ -113,6 +113,36 @@ class DatasourceIsSharedWithUser(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         # Only make decisions about Chart Objects
         if not type(obj) == Datasource:
+            return False
+        user = request.user
+        #Check if user is in request
+        if not user or type(user) == AnonymousUser:
+            return False
+        shared_users = obj.shared_users.all()
+        shared_groups = obj.shared_groups.all()
+        group_admin_positions_of_user = user.group_admins.all()
+        group_memberships_of_user = user.group_members.all()
+        union_membership = (group_admin_positions_of_user | group_memberships_of_user)
+        intersection_between_groups = shared_groups & union_membership
+        return user in shared_users or intersection_between_groups
+
+class IsDashboardOwner(permissions.BasePermission):
+
+    def has_object_permission(self, request, view, obj):
+        # Only make decisions about Chart Objects
+        if not type(obj) == Dashboard:
+            return False
+        user = request.user
+        #Check if user is in request
+        if not user:
+            return False
+        return user == obj.owner
+
+class DashboardIsSharedWithUser(permissions.BasePermission):
+
+    def has_object_permission(self, request, view, obj):
+        # Only make decisions about Chart Objects
+        if not type(obj) == Dashboard:
             return False
         user = request.user
         #Check if user is in request
