@@ -9,7 +9,7 @@ from django.conf import settings
 from rest_framework import generics, permissions, status, serializers
 from rest_framework.reverse import reverse
 from ..serializers import ChartSerializer
-from ..permissions import IsDatasourceOwner, DatasourceIsSharedWithUser, IsChartOwner, ChartIsSharedWithUser, ChartIsPublic, ChartIsShared, ChartIsSemiPublic
+from ..permissions import IsOwner, IsSharedWithUser, IsPublic, IsSemiPublic, IsShared
 from ..util import get_chart_base_path, get_config_for_chart, get_code_base_path, get_chart_types_for_datasource
 from ..models import Chart, Datasource
 from rest_framework.response import Response
@@ -35,8 +35,8 @@ class ChartCreateListView(generics.ListCreateAPIView):
         # Only allow creation if used datasource is available to user
         if not permissions.IsAuthenticated().has_permission(request, self):
             return Response("Must be logged in to create charts", status=status.HTTP_403_FORBIDDEN)
-        owner_permission = IsDatasourceOwner()
-        shared_permission = DatasourceIsSharedWithUser()
+        owner_permission = IsOwner()
+        shared_permission = IsSharedWithUser()
         if not (owner_permission.has_object_permission(request, self, datasource)
                 or shared_permission.has_object_permission(request, self, datasource)):
             return Response("No such datasource or forbidden", status=status.HTTP_403_FORBIDDEN)
@@ -50,9 +50,9 @@ class ChartCreateListView(generics.ListCreateAPIView):
         queryset = self.filter_queryset(self.get_queryset())
 
         # Only show charts owned or shared with user or that are public
-        owner_permission = IsChartOwner()
-        shared_permission = ChartIsSharedWithUser()
-        public_permission = ChartIsPublic()
+        owner_permission = IsOwner()
+        shared_permission = IsSharedWithUser()
+        public_permission = IsPublic()
         queryset = [obj for obj in queryset
                     if owner_permission.has_object_permission(request, self, obj)
                     or shared_permission.has_object_permission(request, self, obj)
@@ -66,7 +66,7 @@ class ChartCreateListView(generics.ListCreateAPIView):
 
 class ChartRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
     """Modify or delete an existing chart"""
-    permission_classes = [permissions.IsAuthenticated & (IsChartOwner | (ChartIsShared & ChartIsSharedWithUser))]
+    permission_classes = [permissions.IsAuthenticated & (IsOwner | IsShared & IsSharedWithUser)]
     serializer_class = ChartSerializer
     queryset = Chart.objects.all()
 
@@ -85,7 +85,7 @@ class ChartRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
             return obj
 
         # Check if modifying user is owner
-        if not IsChartOwner().has_object_permission(request, self, obj):
+        if not IsOwner().has_object_permission(request, self, obj):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         serializer = ChartSerializer(obj, data=request.data, context={'request': request})
@@ -99,7 +99,7 @@ class ChartRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
             return current_object
 
         # Check if modifying user is owner
-        owner_permission = IsChartOwner()
+        owner_permission = IsOwner()
         if not owner_permission.has_object_permission(request, self, current_object):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
@@ -109,7 +109,7 @@ class ChartRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
 
 class ChartDataView(generics.RetrieveAPIView):
     """Get processed data associated with a chart"""
-    permission_classes = [IsChartOwner | ChartIsShared & ChartIsSharedWithUser | ChartIsSemiPublic]
+    permission_classes = [IsOwner | IsShared & IsSharedWithUser | IsSemiPublic]
     serializer_class = serializers.Serializer
     queryset = Chart.objects.all()
 
@@ -130,7 +130,7 @@ class ChartDataView(generics.RetrieveAPIView):
 
 class ChartConfigView(generics.RetrieveAPIView):
     """Get config associated with a chart"""
-    permission_classes = [IsChartOwner | ChartIsShared & ChartIsSharedWithUser | ChartIsSemiPublic]
+    permission_classes = [IsOwner | IsShared & IsSharedWithUser | IsSemiPublic]
     serializer_class = serializers.Serializer
     queryset = Chart.objects.all()
 
@@ -151,7 +151,7 @@ class ChartConfigView(generics.RetrieveAPIView):
 
 class ChartCodeView(generics.RetrieveAPIView):
     """Get js code associated with a chart"""
-    permission_classes = [IsChartOwner | ChartIsShared & ChartIsSharedWithUser | ChartIsSemiPublic]
+    permission_classes = [IsOwner | IsShared & IsSharedWithUser | IsSemiPublic]
     serializer_class = serializers.Serializer
     queryset = Chart.objects.all()
 
@@ -184,7 +184,7 @@ class ChartCodeView(generics.RetrieveAPIView):
 
 class ChartFileView(generics.RetrieveAPIView):
     """Get another file associated with a chart (e.g. shapefile for maps)"""
-    permission_classes = [IsChartOwner | ChartIsShared & ChartIsSharedWithUser | ChartIsSemiPublic]
+    permission_classes = [IsOwner | IsShared & IsSharedWithUser | IsSemiPublic]
     serializer_class = serializers.Serializer
     queryset = Chart.objects.all()
 
@@ -230,7 +230,7 @@ def get_common_code(request: HttpRequest, name) -> HttpResponse:
 
 class ChartTypeView(generics.ListAPIView):
     """Get a list of supported chart types for a datasource"""
-    permission_classes = [permissions.IsAuthenticated & (IsDatasourceOwner | DatasourceIsSharedWithUser)]
+    permission_classes = [permissions.IsAuthenticated & (IsOwner | IsSharedWithUser)]
     queryset = Datasource.objects.all()
     serializer_class = serializers.Serializer
 
@@ -247,5 +247,5 @@ class ChartTypeView(generics.ListAPIView):
 
 class ChartShareView(ShareView):
     """ShareView for Charts"""
-    permission_classes = [permissions.IsAuthenticated & IsChartOwner]
+    permission_classes = [permissions.IsAuthenticated & IsOwner]
     queryset = Chart.objects.all()

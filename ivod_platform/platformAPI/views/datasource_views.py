@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import generics
 from ..serializers import DatasourceSerializer
-from ..permissions import IsDatasourceOwner, DatasourceIsSharedWithUser
+from ..permissions import IsOwner, IsSharedWithUser
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import permissions
@@ -24,8 +24,8 @@ class DatasourceCreateListView(generics.ListCreateAPIView):
         queryset = self.get_queryset()
 
         # Only show datasources owned or shared with user
-        owner_permission = IsDatasourceOwner()
-        shared_permission = DatasourceIsSharedWithUser()
+        owner_permission = IsOwner()
+        shared_permission = IsSharedWithUser()
         queryset = [obj for obj in queryset if owner_permission.has_object_permission(request, self,
                                                                                       obj) or shared_permission.has_object_permission(
             request, self, obj)]
@@ -37,7 +37,7 @@ class DatasourceCreateListView(generics.ListCreateAPIView):
 
 class DatasourceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     """Modify or delete an existing datasource"""
-    permission_classes = [permissions.IsAuthenticated & (IsDatasourceOwner | DatasourceIsSharedWithUser)]
+    permission_classes = [permissions.IsAuthenticated & (IsOwner | IsSharedWithUser)]
     serializer_class = DatasourceSerializer
     queryset = Datasource.objects.all()
 
@@ -56,7 +56,7 @@ class DatasourceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIVi
             return current_object
 
         # Check if modifying user is owner
-        owner_permission = IsDatasourceOwner()
+        owner_permission = IsOwner()
         if not owner_permission.has_object_permission(request, self, current_object):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
@@ -71,7 +71,7 @@ class DatasourceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIVi
             return current_object
 
         # Check if modifying user is owner
-        owner_permission = IsDatasourceOwner()
+        owner_permission = IsOwner()
         if not owner_permission.has_object_permission(request, self, current_object):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
@@ -80,5 +80,5 @@ class DatasourceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIVi
 
 class DatasourceShareView(ShareView):
     """ShareView for Datasources"""
-    permission_classes = [permissions.IsAuthenticated & IsDatasourceOwner]
+    permission_classes = [permissions.IsAuthenticated & IsOwner]
     queryset = Datasource.objects.all()

@@ -2,8 +2,6 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 import uuid
 
-#TODO: Dashbord, Datasource and Chart share many similarities, that could be merged to a common abstract ancestor, this would improve reusability
-
 class User(AbstractUser):
 
     USERNAME_FIELD = "email"
@@ -29,63 +27,57 @@ class ShareGroup(models.Model):
         ]
 
 
-class Datasource(models.Model):
-    source = models.URLField()
-    creation_time = models.DateTimeField(auto_now_add=True)
-    modification_time = models.DateTimeField(auto_now=True)
-    datasource_name = models.CharField(max_length=256)
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="datasource_owner")
+class ShareableModel(models.Model):
 
-    shared_users = models.ManyToManyField(User, related_name="datasource_shared_users")
-    shared_groups = models.ManyToManyField(ShareGroup, related_name="datasource_shared_groups")
     class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=['owner', 'datasource_name'],name='datasource_unique_user_datasource_name'),
-        ]
-
-class Chart(models.Model):
+        abstract = True
 
     VISIBILITY_PRIVATE = 0
     VISIBILITY_SHARED = 1
     VISIBILITY_SEMI_PUBLIC = 2
     VISIBILITY_PUBLIC = 3
 
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="%(class)s_owner")
+    visibility = models.IntegerField(default=VISIBILITY_PRIVATE)
+
+    shared_users = models.ManyToManyField(User)
+    shared_groups = models.ManyToManyField(ShareGroup)
+
+
+class Datasource(ShareableModel):
+    source = models.URLField()
+    creation_time = models.DateTimeField(auto_now_add=True)
+    modification_time = models.DateTimeField(auto_now=True)
+    datasource_name = models.CharField(max_length=256)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['owner', 'datasource_name'],name='datasource_unique_user_datasource_name'),
+        ]
+
+class Chart(ShareableModel):
+
     chart_type = models.CharField(max_length=256)
     chart_name = models.CharField(max_length=256)
     creation_time = models.DateTimeField(auto_now_add=True)
     modification_time = models.DateTimeField(auto_now=True)
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="chart_owner")
     original_datasource = models.ForeignKey(Datasource, on_delete=models.SET_NULL, blank=True, null=True)
     downloadable = models.BooleanField(default=False)
-    visibility = models.IntegerField(default=VISIBILITY_PRIVATE)
-
-    shared_users = models.ManyToManyField(User, related_name="chart_shared_users")
-    shared_groups = models.ManyToManyField(ShareGroup, related_name="chart_shared_groups")
 
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['owner', 'chart_name'],name='chart_unique_user_scope_path'),
         ]
 
-class Dashboard(models.Model):
-
-    VISIBILITY_PRIVATE = 0
-    VISIBILITY_SHARED = 1
-    VISIBILITY_SEMI_PUBLIC = 2
-    VISIBILITY_PUBLIC = 3
+class Dashboard(ShareableModel):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=256)
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="dashboard_owner")
     creation_time = models.DateTimeField(auto_now_add=True)
     modification_time = models.DateTimeField(auto_now=True)
     config = models.CharField(max_length=1024*16) #TODO: Adequate limit?
-    visibility = models.IntegerField(default=VISIBILITY_PRIVATE)
 
-    # class Meta:
-    #     constraints = [
-    #         models.UniqueConstraint(fields=['owner', 'chart_name'],name='dashboard_unique_user_scope_path'),
-    #     ]
-
-    shared_users = models.ManyToManyField(User, related_name="dashboard_shared_users")
-    shared_groups = models.ManyToManyField(ShareGroup, related_name="dashboard_shared_groups")
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['owner', 'name'], name='dashboard_unique_user_scope_path'),
+        ]

@@ -1,24 +1,31 @@
 from rest_framework import permissions
-from .models import Chart, Datasource, ShareGroup, Dashboard
+from .models import Chart, Datasource, ShareGroup, Dashboard, ShareableModel
 from django.contrib.auth.models import AnonymousUser
 
-class IsChartOwner(permissions.BasePermission):
+class IsOwner(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
-        # Only make decisions about Chart Objects
-        if not type(obj) == Chart:
+        if not issubclass(type(obj), ShareableModel):
             return False
         user = request.user
         #Check if user is in request
-        if not user:
+        if not user or type(user) == AnonymousUser:
             return False
         return user == obj.owner
 
-class ChartIsSharedWithUser(permissions.BasePermission):
+class IsShared(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         # Only make decisions about Chart Objects
-        if not type(obj) == Chart:
+        if not issubclass(type(obj), ShareableModel):
+            return False
+        return obj.visibility >= ShareableModel.VISIBILITY_SHARED
+
+class IsSharedWithUser(permissions.BasePermission):
+
+    def has_object_permission(self, request, view, obj):
+        # Only make decisions about Chart Objects
+        if not issubclass(type(obj), ShareableModel):
             return False
         user = request.user
         #Check if user is in request
@@ -32,40 +39,21 @@ class ChartIsSharedWithUser(permissions.BasePermission):
         intersection_between_groups = shared_groups & union_membership
         return user in shared_users or intersection_between_groups
 
-class ChartIsShared(permissions.BasePermission):
+class IsSemiPublic(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         # Only make decisions about Chart Objects
-        if not type(obj) == Chart:
+        if not issubclass(type(obj), ShareableModel):
             return False
-        return obj.visibility >= Chart.VISIBILITY_SHARED
+        return obj.visibility >= ShareableModel.VISIBILITY_SEMI_PUBLIC
 
-class ChartIsSemiPublic(permissions.BasePermission):
-
-    def has_object_permission(self, request, view, obj):
-        # Only make decisions about Chart Objects
-        if not type(obj) == Chart:
-            return False
-        return obj.visibility >= Chart.VISIBILITY_SEMI_PUBLIC
-
-class ChartIsPublic(permissions.BasePermission):
+class IsPublic(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         # Only make decisions about Chart Objects
-        if not type(obj) == Chart:
+        if not issubclass(type(obj), ShareableModel):
             return False
-        return obj.visibility >= Chart.VISIBILITY_PUBLIC
-
-class IsDatasourceOwner(permissions.BasePermission):
-    def has_object_permission(self, request, view, obj):
-        # Only make decisions about Chart Objects
-        if not type(obj) == Datasource:
-            return False
-        user = request.user
-        #Check if user is in request
-        if not user:
-            return False
-        return user == obj.owner
+        return obj.visibility >= ShareableModel.VISIBILITY_PUBLIC
 
 class IsGroupPublic(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
@@ -107,75 +95,3 @@ class IsUserGroupAdmin(permissions.BasePermission):
         if not user:
             return False
         return user in obj.group_admins.all()
-
-class DatasourceIsSharedWithUser(permissions.BasePermission):
-
-    def has_object_permission(self, request, view, obj):
-        # Only make decisions about Chart Objects
-        if not type(obj) == Datasource:
-            return False
-        user = request.user
-        #Check if user is in request
-        if not user or type(user) == AnonymousUser:
-            return False
-        shared_users = obj.shared_users.all()
-        shared_groups = obj.shared_groups.all()
-        group_admin_positions_of_user = user.group_admins.all()
-        group_memberships_of_user = user.group_members.all()
-        union_membership = (group_admin_positions_of_user | group_memberships_of_user)
-        intersection_between_groups = shared_groups & union_membership
-        return user in shared_users or intersection_between_groups
-
-class IsDashboardOwner(permissions.BasePermission):
-
-    def has_object_permission(self, request, view, obj):
-        # Only make decisions about Chart Objects
-        if not type(obj) == Dashboard:
-            return False
-        user = request.user
-        #Check if user is in request
-        if not user:
-            return False
-        return user == obj.owner
-
-class DashboardIsSharedWithUser(permissions.BasePermission):
-
-    def has_object_permission(self, request, view, obj):
-        # Only make decisions about Chart Objects
-        if not type(obj) == Dashboard:
-            return False
-        user = request.user
-        #Check if user is in request
-        if not user or type(user) == AnonymousUser:
-            return False
-        shared_users = obj.shared_users.all()
-        shared_groups = obj.shared_groups.all()
-        group_admin_positions_of_user = user.group_admins.all()
-        group_memberships_of_user = user.group_members.all()
-        union_membership = (group_admin_positions_of_user | group_memberships_of_user)
-        intersection_between_groups = shared_groups & union_membership
-        return user in shared_users or intersection_between_groups
-
-class DashboardIsPublic(permissions.BasePermission):
-
-    def has_object_permission(self, request, view, obj):
-        # Only make decisions about Chart Objects
-        if not type(obj) == Dashboard:
-            return False
-        return obj.visibility >= Dashboard.VISIBILITY_PUBLIC
-
-class DashboardIsSemiPublic(permissions.BasePermission):
-
-    def has_object_permission(self, request, view, obj):
-        # Only make decisions about Chart Objects
-        if not type(obj) == Dashboard:
-            return False
-        return obj.visibility >= Dashboard.VISIBILITY_SEMI_PUBLIC
-
-class DashboardIsShared(permissions.BasePermission):
-
-    def has_object_permission(self, request, view, obj):
-        # Only make decisions about Chart Objects
-        if not type(obj) == Dashboard:
-            return False
-        return obj.visibility >= Dashboard.VISIBILITY_SHARED

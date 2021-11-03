@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, status, serializers
 from rest_framework.reverse import reverse
 from ..serializers import DashboardSerializer
-from ..permissions import IsDashboardOwner, DashboardIsSharedWithUser, DashboardIsShared, DashboardIsSemiPublic
+from ..permissions import IsOwner, IsSharedWithUser, IsPublic, IsSemiPublic, IsShared
 from ..models import Dashboard
 
 from rest_framework.response import Response
@@ -27,8 +27,8 @@ class DashboardCreateListView(generics.ListCreateAPIView):
         queryset = self.get_queryset()
 
         # Only show datasources owned or shared with user
-        owner_permission = IsDashboardOwner()
-        shared_permission = DashboardIsSharedWithUser()
+        owner_permission = IsOwner()
+        shared_permission = IsSharedWithUser()
         queryset = [obj for obj in queryset if owner_permission.has_object_permission(request, self,
                                                                                       obj) or shared_permission.has_object_permission(
             request, self, obj)]
@@ -40,7 +40,7 @@ class DashboardCreateListView(generics.ListCreateAPIView):
 
 class DashboardRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     """Modify or delete an existing datasource"""
-    permission_classes = [permissions.IsAuthenticated & (IsDashboardOwner | DashboardIsShared & DashboardIsSharedWithUser | DashboardIsSemiPublic)]
+    permission_classes = [permissions.IsAuthenticated & (IsOwner | IsShared & IsSharedWithUser | IsSemiPublic)]
     serializer_class = DashboardSerializer
     queryset = Dashboard.objects.all()
 
@@ -59,7 +59,7 @@ class DashboardRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIVie
             return current_object
 
         # Check if modifying user is owner
-        owner_permission = IsDashboardOwner()
+        owner_permission = IsOwner()
         if not owner_permission.has_object_permission(request, self, current_object):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
@@ -74,7 +74,7 @@ class DashboardRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIVie
             return current_object
 
         # Check if modifying user is owner
-        owner_permission = IsDashboardOwner()
+        owner_permission = IsOwner()
         if not owner_permission.has_object_permission(request, self, current_object):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
@@ -83,5 +83,5 @@ class DashboardRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIVie
 
 class DashboardShareView(ShareView):
     """ShareView for Datasources"""
-    permission_classes = [permissions.IsAuthenticated & IsDashboardOwner]
+    permission_classes = [permissions.IsAuthenticated & IsOwner]
     queryset = Dashboard.objects.all()
