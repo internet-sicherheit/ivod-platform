@@ -1,7 +1,7 @@
 from setuptools import setup
 from pathlib import Path
 
-HARDCODED_PIVE_VERSION = '0.3.202110201350'
+HARDCODED_PIVE_VERSION = '0.3.202111040945'
 
 setup(
     name='ivod-platform',
