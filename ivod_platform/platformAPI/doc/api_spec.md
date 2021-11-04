@@ -216,6 +216,10 @@
             - 'data':
                 - Description: Data to be used as datasource, base64 encoded
                 - Type: string
+        - 'visibility':
+            - Description: Determines the share level of this datasource
+            - Type: Enum(Private, Shared, Semi-Public, Public)
+            - Default: 0
     - Returns:
         - Format: JSON
         - Type: Datasource
@@ -236,6 +240,10 @@
         - 'datasource_name':
             - Description: Object name for displaying/ordering elements in UI
             - Type: string
+            - Default: Prior Value
+        - 'visibility':
+            - Description: Determines the share level of this datasource
+            - Type: Enum(Private, Shared, Semi-Public, Public)
             - Default: Prior Value
     - Returns:
         - Format: JSON
@@ -294,6 +302,104 @@
     - Returns:
         - Format: JSON
         - Type: [String]
+        - Code: 200
+
+## dashboard-add
+
+- url: dashboard
+- Description: List dashboards or add a new dashboard
+- methods: [GET, POST]
+- GET:
+    - Returns:
+        - Format: JSON
+        - Type: [Dashboard]
+        - Code: 200
+    - Parameters:
+        - 'config':
+            - Description: Dashboard config
+            - Type: JSON Object
+        - 'name':
+            - Description: Object name for displaying/ordering elements in UI
+            - Type: string
+        - 'visibility':
+            - Description: Determines the share level of this dashboard
+            - Type: Enum(Private, Shared, Semi-Public, Public)
+            - Default: 0
+    - Returns:
+        - Format: JSON
+        - Type: Dashboard
+        - Code: 201
+
+## dashboard-get
+
+- url: dashboard/\<ID\>
+- Description: Show or delete a specific dashboard
+- methods: [GET, DELETE]
+- GET:
+    - Returns:
+        - Format: JSON
+        - Type: Datasource
+        - Code: 200
+- PATCH:
+    - Parameters:
+        - 'config':
+            - Description: Dashboard config
+            - Type: JSON Object
+            - Default: Prior Value
+        - 'name':
+            - Description: Object name for displaying/ordering elements in UI
+            - Type: string
+            - Default: Prior Value
+        - 'visibility':
+            - Description: Determines the share level of this dashboard
+            - Type: Enum(Private, Shared, Semi-Public, Public)
+            - Default: Prior Value
+    - Returns:
+        - Format: JSON
+        - Type: Datasource
+        - Code: 200
+- DELETE:
+    - Returns:
+        - Code: 204
+
+## dashboard-shared
+
+- url: dashboard/\<ID\>/shared
+- Description: Show, add or remove users this dashboard is shared with
+- methods: [GET, PATCH, DELETE]
+- GET:
+    - Returns:
+        - Format: JSON
+        - Type: Shares
+        - Code: 200
+- PATCH:
+    - Parameters:
+        - 'users':
+            - Description: List of user IDs to add to share
+            - Type: [int]
+            - Default: []
+        - 'groups':
+            - Description: List of group IDs to add to share
+            - Type: [int]
+            - Default: []
+    - Returns:
+        - Format: JSON
+        - Type: Shares
+        - Code: 200
+
+- DELETE:
+    - Parameters:
+        - 'users':
+            - Description: List of user IDs to remove from share
+            - Type: [int]
+            - Default: []
+        - 'groups':
+            - Description: List of group IDs to remove from share
+            - Type: [int]
+            - Default: []
+    - Returns:
+        - Format: JSON
+        - Type: Shares
         - Code: 200
 
 ## sharegroup-add
@@ -567,6 +673,7 @@
 - Datasource
 - Chart
 - Shares
+- Dashboard
 
 ## Datasource
 
@@ -656,6 +763,31 @@
     - Description: List of group IDs this share applies to
     - Type: [int]
     - Default: []
+  
+## Dashboard
+
+- 'id':
+    - Description: Database id of dashboard
+    - Type: uui
+- 'name':
+    - Description: Object name for displaying/ordering elements in UI
+    - Type: string
+- 'owner'
+    - Description: Database id of owner
+    - Type: uuid
+- 'config':
+    - Description: Config for dashboard, encodes items and their position and size
+    - Type: JSON Object
+- 'visibility':
+    - Description: Determines the share level of this dashboard
+    - Type: Enum(Private, Shared, Semi-Public, Public)
+    - Default: 0
+- 'creation_time'
+    - Description: Timestamp of when this chart was created
+    - Type: string
+- 'modification_time'
+    - Description: Timestamp of when this chart was last modified
+    - Type: string
 
 ## User
 
