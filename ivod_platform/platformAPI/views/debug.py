@@ -1,7 +1,7 @@
 
 from django.http import HttpResponse, HttpRequest
 from ..tests import PlatformAPITestCase
-from ..models import ShareGroup, Datasource, Chart
+from ..models import ShareGroup, Datasource, Chart, User
 
 def helloworld(request: HttpRequest) -> HttpResponse:
     return HttpResponse('Hello World')
@@ -14,15 +14,8 @@ def debug_reset_database(request: HttpRequest) -> HttpResponse:
     # Delete all users and groups
     for user in User.objects.all():
         user.delete()
-    for group in Group.objects.all():
+    for group in ShareGroup.objects.all():
         group.delete()
-
-    # Should have been done through cascadation, just to be safe
-    # Delete all admins and admin groups
-    for e_user in User.objects.all():
-        e_user.delete()
-    for e_group in ShareGroup.objects.all():
-        e_group.delete()
 
     # Should have been done through cascadation, just to be safe
     # Delete all datasources and charts
