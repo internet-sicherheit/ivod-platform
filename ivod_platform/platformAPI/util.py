@@ -43,6 +43,8 @@ def render_chart(chart, chart_id, environment, request, config=None):
     chart.set_dataset_url(dataset_url)
     config_url = request.build_absolute_uri(reverse("chart-config", kwargs={'pk': chart_id}))
     code_src = request.build_absolute_uri(reverse("chart-code", kwargs={'pk': chart_id}))
+    if hasattr(chart, "set_map_shape_url"):
+        chart.set_map_shape_url(request.build_absolute_uri(reverse("chart-files", kwargs={'pk': chart_id, 'filename': 'shape.json'})))
     _ = environment.render(chart, template_variables={'t_config_url': config_url, 't_code_src': code_src}, filenames={'chart.js': None})
     _ = environment.render_code(chart)
 
