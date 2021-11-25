@@ -293,11 +293,13 @@ class DashboardSerializer(serializers.ModelSerializer):
     def parse_config(self, config, strip_extra=True):
         supported_generators = ['id', 'chart'] #TODO: Get list from config to make adding generators easier
 
+        numberTypes = {int, float}
+
         def parse_split(c):
             keys = set(c.keys())
             if 'aspect' not in c:
                 raise serializers.ValidationError("split must have an aspect ratio")
-            elif (len(c['aspect']) != 2 or type(c['aspect'][0]) != int  or type(c['aspect'][1]) != int or c['aspect'][0]<0  or c['aspect'][1]<0):
+            elif (len(c['aspect']) != 2 or type(c['aspect'][0]) not in numberTypes  or type(c['aspect'][1]) not in numberTypes or c['aspect'][0]<0  or c['aspect'][1]<0):
                 raise serializers.ValidationError("aspect ratio must be a list of exact 2 positive integers")
             else:
                 keys.remove('aspect')
