@@ -14,6 +14,13 @@ from django.core.mail.backends.smtp import EmailBackend
 from django.core import signing
 from django.template.loader import render_to_string
 
+
+GEO_CONFIG = {}
+if hasattr(settings, "GEO_COUNTRYCODE"):
+    GEO_CONFIG["country"] = getattr(settings, "GEO_COUNTRYCODE")
+if hasattr(settings, "GEO_API_ENDPOINT"):
+    GEO_CONFIG["overpass_endpoint"] = getattr(settings, "GEO_API_ENDPOINT")
+
 def get_chart_types_for_datasource(datasource):
     """Create a list of supported chart types for a datasource
     :param Datasource datasource: The datasource, for which the chart types should be generated
@@ -60,9 +67,8 @@ def generate_chart(datasource, chart_id, chart_type, request, config=None):
     base_path = get_chart_base_path()
     base_path.mkdir(parents=True, exist_ok=True)
     output_path = base_path.joinpath(str(chart_id))
-
     manager = inputmanager.InputManager(mergedata=False, accept_unordered=getattr(settings, "DATA_ALLOW_UNORDERED", False))
-    env = environment.Environment(inputmanager=manager, outputmanager=outputmanager.FolderOutputManager(output_path))
+    env = environment.Environment(inputmanager=manager, outputmanager=outputmanager.FolderOutputManager(output_path), **GEO_CONFIG)
     supported = env.load(datasource.source)
     if chart_type not in supported:
         raise Exception("Chart type unsupported")
@@ -85,7 +91,7 @@ def modify_chart(chart_id, request, config=None):
     with Path(persisted_data_path).open("r") as persisted_data_file:
         persisted_data = json.load(persisted_data_file)
     manager = inputmanager.InputManager(mergedata=False, accept_unordered=getattr(settings, "DATA_ALLOW_UNORDERED", False))
-    env = environment.Environment(inputmanager=manager, outputmanager=outputmanager.FolderOutputManager(output_path))
+    env = environment.Environment(inputmanager=manager, outputmanager=outputmanager.FolderOutputManager(output_path), **GEO_CONFIG)
     chart = env.load_raw(persisted_data)
     render_chart(chart, chart_id, env, request, config)
 

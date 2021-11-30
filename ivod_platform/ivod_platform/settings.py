@@ -181,6 +181,9 @@ USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+#GEO_COUNTRYCODE="DE"
+#GEO_API_ENDPOINT='http://overpass-api.de/api/interpreter'
+
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 DATA_ALLOW_UNORDERED = False
