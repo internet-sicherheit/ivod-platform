@@ -106,6 +106,7 @@ class PlatformAPITestCase(APITestCase):
         self.chart5 = self.create_chart(self.user2.email, "00000000", "{}", True, Chart.VISIBILITY_PUBLIC,
                                         "/linechart3", "linechart", self.datasource2.id)
 
+
         self.chart2.shared_users.add(self.user2)
         self.chart2.shared_groups.add(self.group1)
         self.chart2.save()
@@ -154,6 +155,49 @@ class PlatformAPITestCase(APITestCase):
   })
         self.invalid_dashboard_config1 = ""
         self.invalid_dashboard_config2 = "A dictionary is expected, not a string."
+
+    def setup_demo(self):
+        self.setUp()
+        self.user5 = User.objects.create_user(email="user5@localhost", username="user5", password="00000000",
+                                              is_verified=True, public_profile=True)
+
+
+        demosources = []
+        datasource_base_path = Path(__file__).resolve().parent.joinpath("sample-data").joinpath("data").joinpath(
+            "metadata")
+        with datasource_base_path.joinpath("simple_series.json").open("rb") as source_file:
+            demosources.append(self.create_datasource(self.user5.email, "00000000", "simple_series", source_file.read(),
+                                                      ShareableModel.VISIBILITY_SHARED))
+        with datasource_base_path.joinpath("numerical.json").open("rb") as source_file:
+            demosources.append(self.create_datasource(self.user5.email, "00000000", "numerical", source_file.read(),
+                                                      ShareableModel.VISIBILITY_SHARED))
+        with datasource_base_path.joinpath("groupdata.json").open("rb") as source_file:
+            demosources.append(self.create_datasource(self.user5.email, "00000000", "groupdata", source_file.read(),
+                                                      ShareableModel.VISIBILITY_SHARED))
+        with datasource_base_path.parent.joinpath("polygon.json").open("rb") as source_file:
+            demosources.append(self.create_datasource(self.user5.email, "00000000", "polygon", source_file.read(),
+                                                      ShareableModel.VISIBILITY_SHARED))
+        with datasource_base_path.parent.joinpath("ge_arbeitsmarkt.csv").open("rb") as source_file:
+            demosources.append(
+                self.create_datasource(self.user5.email, "00000000", "ge_arbeitsmarkt", source_file.read(),
+                                       ShareableModel.VISIBILITY_SHARED))
+        with datasource_base_path.parent.joinpath("ge_poi-einzelhandel_small.csv").open("rb") as source_file:
+            demosources.append(
+                self.create_datasource(self.user5.email, "00000000", "ge_poi-einzelhandel", source_file.read(),
+                                       ShareableModel.VISIBILITY_SHARED))
+
+        (SERVER_NAME, SERVER_PORT, PROTO) = self.get_server_address()
+        for source in demosources:
+            print("--------" + source.datasource_name + "--------")
+            self.client.login(email=self.user5.email, password='00000000')
+            url = reverse("datasource-charttypes", kwargs={'pk': source.id})
+            response = self.client.get(url, format='json', **{"SERVER_NAME": SERVER_NAME, "SERVER_PORT": SERVER_PORT,
+                                                              "wsgi.url_scheme": PROTO})
+            self.client.logout()
+            for charttype in response.data:
+                print(source.datasource_name + "/" + charttype)
+                self.create_chart(self.user5.email, "00000000", "{}", True, ShareableModel.VISIBILITY_PUBLIC,
+                                  source.datasource_name + "/" + charttype, charttype, source.id)
 
     def test_datasources_list_unautenticated(self):
         # Access listing of datasources unauthenticated -> Error 403
