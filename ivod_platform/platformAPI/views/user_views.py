@@ -1,3 +1,4 @@
+import sys
 from uuid import UUID
 
 from django.contrib.auth.models import AnonymousUser
@@ -101,10 +102,18 @@ class CreateUserView(generics.CreateAPIView):
     def post(self, request, *args, **kwargs):
         if type(request.user) == AnonymousUser:
             serializer = UserSerializer(data=request.data, context={'request': request})
-            serializer.is_valid(raise_exception=True)
-            self.perform_create(serializer)
-            send_verification_mail(serializer.instance, request.data["email"], request)
-            return Response(status=status.HTTP_201_CREATED)
+            if not serializer.is_valid(raise_exception=False):
+                #Try to resend email
+                if "email" in serializer.errors:
+                    existing_user = User.objects.get(email=request.data["email"])
+                    send_verification_mail(existing_user, request.data["email"], request)
+                    return Response(status=status.HTTP_201_CREATED)
+                else:
+                    serializer.is_valid(raise_exception=True)
+            else:
+                self.perform_create(serializer)
+                send_verification_mail(serializer.instance, request.data["email"], request)
+                return Response(status=status.HTTP_201_CREATED)
         else:
             # TODO: Is there any legitimate reason to create another user while logged in?
             return Response(status=status.HTTP_403_FORBIDDEN)
