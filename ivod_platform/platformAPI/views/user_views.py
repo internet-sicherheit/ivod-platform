@@ -106,8 +106,11 @@ class CreateUserView(generics.CreateAPIView):
                 #Try to resend email
                 if "email" in serializer.errors:
                     existing_user = User.objects.get(email=request.data["email"])
-                    send_verification_mail(existing_user, request.data["email"], request)
-                    return Response(status=status.HTTP_201_CREATED)
+                    if not existing_user.is_verified:
+                        send_verification_mail(existing_user, request.data["email"], request)
+                        return Response(status=status.HTTP_201_CREATED)
+                    else:
+                        serializer.is_valid(raise_exception=True)
                 else:
                     serializer.is_valid(raise_exception=True)
             else:
