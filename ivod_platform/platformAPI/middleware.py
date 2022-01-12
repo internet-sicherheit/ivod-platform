@@ -1,5 +1,8 @@
+import json
+
 from django.conf import settings
 from json import loads, dumps
+from base64 import b64decode
 
 from django.core.exceptions import SuspiciousOperation
 
@@ -28,8 +31,19 @@ class TokenCopierMiddleware:
                         raise ValueError("Unsupported content Type")
 
             response = self.get_response(request)
+
             if request.path.endswith('/token/blacklist/') and response.status_code == 201:
                 response.delete_cookie(JWT_AUTH_COOKIE)
+            elif (request.path.endswith('/token/') or request.path.endswith('/token/refresh/')) and response.status_code == 201:
+                #Remove token from response
+                token = response.data.pop("token")
+                token_data_b64 = token.split(".")[1]
+                token_data_b64 += ("=" * ((4-len(token_data_b64) % 4)%4) )
+                payload = b64decode(token_data_b64.encode())
+                #Add expiration date back into response
+                response.data["exp"] = loads(payload.decode())["exp"]
+                #Renderer response
+                response.content = dumps(response.data).encode()
         except Exception as e:
             raise SuspiciousOperation()
         # Code to be executed for each request/response after
